@@ -1,0 +1,185 @@
+TypeScript alone no more GoLang for now.
+
+::How many jobs are we scraping?
+10 keywords
+ x 3 locations
+ x 3 pages
+ = 90 search-result pages
+
+ each search-result pages contains 25 jobs
+ x 25
+ = 2250 jobs
+
+::Design of the workflow:
+Campaign
+  └── Search runs
+        └── Search-page tasks
+              └── Discovered jobs
+                    └── Job-detail tasks
+                          └── AI-analysis tasks
+
+
+::How many stages in our core pipeline?
+3 stages
+ - Search Discovery
+    Collect | Dedupe | Paginated  - jobs
+ - Job Enrichments
+    Open | Extract | Structured   - each job details
+ - AI Enrichments
+    Calculate | Score | Structure - each scraped job details with your own Resume
+
+
+::Entities:
+SearchProfile
+- keywords[]
+- locations[]
+- maxPagesPerCombination
+- enabled
+
+{
+  "keywords": [
+    "full stack developer",
+    "AI engineer",
+    "machine learning engineer"
+  ],
+  "locations": [
+    "Bangkok, Thailand",
+    "Singapore, Singapore",
+    "Da Nang, Vietnam"
+  ],
+  "maxPagesPerCombination": 3
+}
+
+
+::Scrape campaign:
+A campaign is one complete execution of that configuration
+
+ScrapeCampaign
+- id
+- status
+- totalSearches
+- completedSearches
+- discoveredJobCount
+- startedAt
+- completedAt
+- cancelRequestedAt
+
+so in our example one campaign contains 
+    -> 10 keywors * 3 locations = 30 searches
+
+::Search Run
+Each keyword x location combination gets its own search run
+SearchRun
+- campaign_id
+- keyword
+- location
+- maxPages
+- status
+- attempts
+- nextEligibleAt
+- lastError
+
+so in our example we have 30 search runs
+
+::Search Page Tasks
+One specific page that must be scraped.
+SearchPageTask
+- search_run_id
+- pageNumber
+- status
+- attemptCount
+- newEligibleAt
+- discoveredCount
+
+* create pages lazily
+page1 -> pending
+  then the scraper confirms another page 2 exists
+  create page 2 task then scrape again repeat till maxPages for each search run hits
+
+
+The result of each SearchPageTask will create this ScrapedJobT data object
+export type ScrapedJobT = {
+  id: string;
+  title: string;
+  url: string;
+  company: string;
+  location: string;
+
+  logoImageUrl?: string;
+  postedDate?: string;
+  postedAgo?: string;
+  salary?: string;
+  insights?: string[];
+
+  isViewed: boolean;
+  isPromoted: boolean;
+  isEarlyApplicant: boolean;
+  isEasyApply: boolean;
+};
+
+
+::Scheduler
+Scheduler should own the ordering rather than hard-coded it into scraper
+
+1. Select Eligible search run task
+2. Open or resue an authenticated browser session
+3. Navigate to its keyword-location search
+4. Scrape one page
+5. Save results transactionally
+6. Schedule the next page after a cooldown
+7. Release the worker
+8. Select another eligible task
+
+This is all for much better interruption handling.
+Persist scraped job after every page is the mental model.
+
+Cooldown or sleep() is part of the scheduler's job not scraper's.
+
+Scraper:
+"Page 1 completed"
+
+Application:
+"Persist the results and set nextEligibleAt"
+
+Worker:
+"Nothing is eligible yet. Remains idle"
+
+
+::Canonical Job VS Discovered Job
+If the same job exists in these searches
+  - software enigneer
+  - backend developer
+  - golang developer
+
+  We should have 1 canonical job
+  NOT 3 duplicated jobs
+
+  so ScrapedJobT should have a field to store the actual LinkedIn Job ID:
+  externalJobId -> <LinkedIn job id>
+    - Deduped
+    - Relevance Ranking
+
+
+::Job Discovery
+A discovery record answers 
+- Where did we find this job?
+- Under which keyword?
+- In which location search?
+- On which page?
+- At what position?
+- When?
+
+This is a histroy to keep track of how we discovered that job over time
+  means after every campaign, every search keywords etc...
+Discovery frequency itself can be a ranking signal. externalJobId
+
+What happens after one page is scraped? by SearchPageTask
+1. Normalize the external job id
+2. Normalize the canonical URL
+3. Check whether the canonical job exists
+4. Insert of update the canonical job.
+5. Create a discovery record
+6. Update page-task counters.
+7. Decide whether another page task should be created.
+
+It should ideally happen inside one DB transaction.

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "paths": {
+      "@constants/*": ["./constants/*"],
+      "@app-types/*": ["./types/*"]
+    }
+  },
+  "include": [
+    "src",
+    "utils",
+    "constants/dom-events.ts",
+    "constants/url-locators.ts",
+    "constants/runtime.ts"
+  ]
+}
