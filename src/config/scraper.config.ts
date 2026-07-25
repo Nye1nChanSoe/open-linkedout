@@ -9,6 +9,12 @@ const config = {
    */
   IS_HEADLESS: false,
 
+  /** Maximum time allowed for manual LinkedIn authentication. */
+  MANUAL_AUTH_TIMEOUT_MS: 10 * 60 * 1000,
+
+  /** Time allowed for a delayed LinkedIn authentication redirect. */
+  AUTH_REDIRECT_GRACE_MS: 5_000,
+
   /**
    * LinkedIn job-discovery pages.
    *
