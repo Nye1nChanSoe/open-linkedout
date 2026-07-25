@@ -122,10 +122,18 @@ await assertAuthenticated(page);
 await dismissContextualSignInModal(page);
 
 const jobsPage = new JobsSearchPage(page);
-await jobsPage.waitForResults();
+await jobsPage.waitForVirtualizedJobCards();
 
-const count = await jobsPage.jobCardSlotCount();
-console.log(`Virtualized slots count: ${count}`);
+const countVirtualized = await jobsPage.virtualizedJobCardCount();
+const countHyrdated = await jobsPage.hydratedJobCardCount();
+console.log(`Virtualized job cards count: ${countVirtualized}`);
+console.log(`Hydrated job cards count: ${countHyrdated}`);
+
+const hasNextPage = await jobsPage.hasNextPage();
+console.log(`Has Next Page: ${hasNextPage}`);
+
+const currentPageNumber = await jobsPage.getCurrentPageNumber();
+console.log(`Current Page Number: ${currentPageNumber}`);
 
 /** end */
 await page.waitForTimeout(60_000);
