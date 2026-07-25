@@ -1,0 +1,6 @@
+We are two main linkedin api to discover jobs
+
+First One is  /jobs/search
+Second One is /jobs/search-results
+
+They are shown in examples:

@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "scrape": "tsx src/scraper/scraper.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.1",

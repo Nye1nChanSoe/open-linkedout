@@ -5,16 +5,17 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "noEmit": true,
+    "types": ["node"],
+    "rootDir": "./src",
     "paths": {
-      "@constants/*": ["./constants/*"],
-      "@app-types/*": ["./types/*"]
+      "@/*": ["./src/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@config/*": ["./src/config/*"],
+      "@scraper/*": ["./src/scraper/*"],
+      "@app-types/*": ["./src/types/*"],
+      "@constants/*": ["./src/constants/*"]
     }
   },
-  "include": [
-    "src",
-    "utils",
-    "constants/dom-events.ts",
-    "constants/url-locators.ts",
-    "constants/runtime.ts"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
 }
