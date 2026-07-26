@@ -1,3 +1,4 @@
+import pc from "picocolors";
 import { JobType } from "@/types/job.type.js";
 import { Paginator } from "./paginator.js";
 import { Scroller } from "./scroller.js";
@@ -12,14 +13,14 @@ export class Scraper {
     const jobs: JobType[] = [];
 
     for (let page = 1; page <= maxPages; page++) {
-      console.info(`Scraping page ${page}/${maxPages}...`);
+      console.info(pc.cyan(`Scraping page ${page}/${maxPages}...`));
 
       const currentPageJobs = await this.scroller.autoScrapeCurrentPage();
 
       jobs.push(...currentPageJobs);
 
       if (!(await this.paginator.hasNextPage())) {
-        console.info("Reached the last available page.");
+        console.info(pc.green("Reached the last available page."));
         break;
       }
 

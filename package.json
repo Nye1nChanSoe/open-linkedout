@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^13.0.1",
+    "picocolors": "^1.1.1",
     "playwright": "^1.61.1"
   },
   "devDependencies": {
@@ -16,5 +17,11 @@
     "@types/node": "^26.1.1",
     "tsx": "^4.23.1",
     "typescript": "^7.0.2"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.1": true,
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.2": true,
+    "fsevents@2.3.3": true
   }
 }

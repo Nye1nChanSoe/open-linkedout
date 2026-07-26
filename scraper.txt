@@ -39,3 +39,12 @@ locator.waitFor({ state: "visible", timeout: 3000 })
     detached: wait until the element removed from the DOM
     visible: wait until the element exists and user can see it.
     hidden: opposite of visible.
+
+
+Scrolling behavior
+--------
+
+scrollIntoViewIfNeeded()
+    - if the element is fully visible do nothing
+    - scroll just enough to make it visible
+    - it scrolls the minimum amount necessary to enter into viewport

@@ -1,3 +1,4 @@
+import pc from "picocolors";
 import { JobsSearchPage } from "./job-search-page.js";
 import { JobType } from "@/types/job.type.js";
 import { extractJobCardData } from "@/pages/search/extractor.js";
@@ -16,14 +17,14 @@ export class Scroller {
     const jobs: JobType[] = [];
     const vSlots = await this.jobSearchPage.virtualizedJobCardCount();
 
-    console.info(`${vSlots} virtualized slots found.`);
+    console.info(pc.cyan(`${vSlots} virtualized slots found.`));
 
     for (let index = 0; index < vSlots; index++) {
       try {
         const job = await this.scrollAndExtract(index);
 
         if (this.processedJobIds.has(job.jobId)) {
-          console.info(`Already collected job: ${job.jobId}`);
+          console.info(pc.yellow(`Already collected job: ${job.jobId}`));
           continue;
         }
 
@@ -54,7 +55,13 @@ export class Scroller {
     await hydratedCard.waitFor({ state: "attached", timeout: 1_000 });
 
     const job = await extractJobCardData(hydratedCard);
-    console.info(`Extracted: ${job.title} . (${job.jobId})`);
+    console.info(
+      pc.green("Extracted"),
+      pc.dim(":"),
+      pc.green(job.title),
+      pc.dim("|"),
+      pc.blue(`(${job.jobId})`),
+    );
 
     return job;
   }

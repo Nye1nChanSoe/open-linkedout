@@ -1,3 +1,4 @@
+import pc from "picocolors";
 import { chromium, type Page } from "playwright";
 import scraperConfig from "@/config/scraper.config.js";
 import domEventConfig from "@/config/dom-event.config.js";
@@ -75,7 +76,9 @@ export async function assertAuthenticated(page: Page): Promise<void> {
     timeout: scraperConfig.MANUAL_AUTH_TIMEOUT_MS,
   });
 
-  console.info("LinkedIn authentication completed. Continuing scraper.");
+  console.info(
+    pc.green("LinkedIn authentication completed. Continuing scraper."),
+  );
 }
 
 /**
@@ -116,7 +119,7 @@ export async function dismissContextualSignInModal(
   }
 
   await modalHeader.waitFor({ state: "hidden" });
-  console.info("Closed LinkedIn contextual sign-in modal.");
+  console.info(pc.green("Closed LinkedIn contextual sign-in modal."));
 
   return true;
 }

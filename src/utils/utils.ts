@@ -1,4 +1,5 @@
 import path from "node:path";
+import pc from "picocolors";
 import type { Page } from "playwright";
 import domeventConfig from "@/config/dom-event.config.js";
 
@@ -33,14 +34,14 @@ export function buildURLParams(
 export async function debugDOMLogs(page: Page) {
   page.on(domeventConfig.EVENT_FRAME_NAVIGATED_PW, (frame) => {
     if (frame === page.mainFrame()) {
-      console.log("[NAVIGATION]", frame.url());
+      console.log(pc.cyan("[NAVIGATION]"), pc.dim(frame.url()));
     }
   });
   page.on(domeventConfig.EVENT_DOMCONTENTLOADED, () => {
-    console.log("[DOM CONTENT LOADED]", page.url());
+    console.log(pc.blue("[DOM CONTENT LOADED]"), pc.dim(page.url()));
   });
   page.on(domeventConfig.EVENT_LOAD, () => {
-    console.log("[LOAD]", page.url());
+    console.log(pc.green("[LOAD]"), pc.dim(page.url()));
   });
 
   await page.addInitScript(() => {
@@ -61,7 +62,7 @@ export async function debugDOMLogs(page: Page) {
 
   page.on("console", (message) => {
     const text = message.text();
-    if (text.startsWith("[HISTORY")) console.log(text);
+    if (text.startsWith("[HISTORY")) console.log(pc.magenta(text));
   });
 }
 
