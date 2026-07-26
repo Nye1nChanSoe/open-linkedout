@@ -1,18 +1,20 @@
 import type { Locator, Page } from "playwright";
 
 /**
- * Markup formats for /jobs/search page:\
- * JobsSearchPage\
-├── search inputs\
-├── virtualized-card locators\
-├── hydrated-card locators\
-├── basic readiness waits\
-├── filters\
-└── pagination controls
+ * Page object for LinkedIn's `/jobs/search` page.
+ *
+ * Owns search controls, job-card | search | pagination - locators,
+ * and DOM result readiness checkers.
+ *
+ * Pagination behavior is handled separately by `Paginator`.
+ * Scrolling behavior is handled separately by `Scroller`.
  */
 export class JobsSearchPage {
   private readonly page: Page;
 
+  /**
+   * Search fields
+   */
   readonly keywordInput: Locator;
   readonly locationInput: Locator;
 
@@ -70,14 +72,14 @@ export class JobsSearchPage {
   async search(keyword: string, location: string) {
     await this.keywordInput.fill(keyword);
     await this.locationInput.fill(location);
-    await this.page.keyboard.press("Enter");
+    await this.locationInput.press("Enter");
   }
 
   /**
-   * Waits until LinkedIn creates at least one visible virtualized slot.
+   * Waits until the first virtualized slot appears.
    * This does not confirm that any slot has been hydrated.
    */
-  async waitForVirtualizedJobCards(timeout = 15_000): Promise<void> {
+  async waitForFirstVirtualizedJobCard(timeout = 15_000): Promise<void> {
     await this.virtualizedJobCards.first().waitFor({
       state: "visible",
       timeout,
@@ -85,9 +87,9 @@ export class JobsSearchPage {
   }
 
   /**
-   * Waits until at least one job slot contains a hydrated card.
+   * Waits until the first hydrated job card appears.
    */
-  async waitForHydratedResults(timeout = 15_000): Promise<void> {
+  async waitForFirstHydratedJobCard(timeout = 15_000): Promise<void> {
     await this.hydratedJobCards.first().waitFor({
       state: "visible",
       timeout,
@@ -102,51 +104,15 @@ export class JobsSearchPage {
     return this.virtualizedJobCards.nth(index);
   }
 
-  /**
-   * Gets the hydrated card inside a virtualized job card.
-   * @param slot - Virtualized job-card locator.
-   * @example jobsPage.hydratedJobCard(virtualizedJobCard)
-   */
   hydratedJobCard(slot: Locator): Locator {
     return slot.locator("div[data-job-id]");
   }
 
-  /**
-   * Gets the hydrated card inside a virtualized job card by index.
-   * @param index - Zero-based virtualized job-card position.
-   * @example jobsPage.hydratedJobCardAt(0)
-   */
   hydratedJobCardAt(index: number): Locator {
     return this.hydratedJobCard(this.virtualizedJobCardAt(index));
   }
 
   async hydratedJobCardCount(): Promise<number> {
     return this.hydratedJobCards.count();
-  }
-
-  /**
-   * Gets the active pagination page number from its aria-label.
-   * @returns Current one-based page number.
-   */
-  async getCurrentPageNumber(): Promise<number> {
-    const ariaLabel = await this.currentPageButton.getAttribute("aria-label");
-    const pageNumber = Number.parseInt(
-      ariaLabel?.match(/^Page\s+(\d+)$/i)?.[1] ?? "",
-      10,
-    );
-
-    if (Number.isNaN(pageNumber)) {
-      throw new Error(`Unable to read current page number from "${ariaLabel}".`);
-    }
-
-    return pageNumber;
-  }
-
-  async hasNextPage(): Promise<boolean> {
-    if ((await this.nextPageButton.count()) === 0) {
-      return false;
-    }
-
-    return this.nextPageButton.isEnabled();
   }
 }

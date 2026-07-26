@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "scrape": "tsx src/scraper/scraper.ts"
+    "scrape": "tsx src/scraper/main.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.1",

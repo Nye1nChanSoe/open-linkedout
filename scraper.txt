@@ -4,3 +4,38 @@ First One is  /jobs/search
 Second One is /jobs/search-results
 
 They are shown in examples:
+
+
+How playwright locator works?
+
+<div id="jobs">
+    <div class="job-card" data-job-id="111">
+        <a class="title">Software Engineer</a>
+    </div>
+
+    <div class="job-card" data-job-id="222">
+        <a class="title">Backend Engineer</a>
+    </div>
+</div>
+
+Locators are lazy 
+page.locator("#jobs")         - find by id
+page.locator(".job-card")     - find by class match all elements that have this class
+page.locator("[data-job-id]") - find by attribute match all elements that have this attr
+page.locator("div")           - find by tag match all elements with this tag
+
+Locators can be chained
+
+const card = page.locator("[data-job-id]")
+const title = card.locator("strong")        # extract strong tag inside card element
+
+
+locator.waitFor({ state: "visible", timeout: 3000 })
+    Waits until the locator reaches a specific state.
+    Playwright keeps checking until the state condition becomes true or timeout.
+
+-- Locator states
+    attached: wait until the element exists in the DOM, event if display is none.
+    detached: wait until the element removed from the DOM
+    visible: wait until the element exists and user can see it.
+    hidden: opposite of visible.

@@ -6,7 +6,10 @@ import {
   resolveProjectPath,
   debugDOMLogs,
 } from "@/utils/utils.js";
-import { JobsSearchPage } from "@/pages/job-search-page.js";
+import { JobsSearchPage } from "@/pages/search/job-search-page.js";
+import { Scroller } from "@/pages/search/scroller.js";
+import { Paginator } from "@/pages/search/paginator.js";
+import { Scraper } from "@/pages/search/scraper.js";
 
 const context = await chromium.launchPersistentContext(
   resolveProjectPath(scraperConfig.PERSISTENT_BROWSER_DATA_PATH),
@@ -28,7 +31,7 @@ await page.goto(
     "bangkok",
   ),
   {
-    waitUntil: domEventConfig.EVENT_LOAD,
+    waitUntil: domEventConfig.EVENT_DOMCONTENTLOADED,
   },
 );
 
@@ -121,19 +124,11 @@ export async function dismissContextualSignInModal(
 await assertAuthenticated(page);
 await dismissContextualSignInModal(page);
 
-const jobsPage = new JobsSearchPage(page);
-await jobsPage.waitForVirtualizedJobCards();
+const jobSearchPage = new JobsSearchPage(page);
+const scroller = new Scroller(jobSearchPage);
+const paginator = new Paginator(jobSearchPage);
+const scraper = new Scraper(scroller, paginator);
+await scraper.autoScrape(5);
 
-const countVirtualized = await jobsPage.virtualizedJobCardCount();
-const countHyrdated = await jobsPage.hydratedJobCardCount();
-console.log(`Virtualized job cards count: ${countVirtualized}`);
-console.log(`Hydrated job cards count: ${countHyrdated}`);
-
-const hasNextPage = await jobsPage.hasNextPage();
-console.log(`Has Next Page: ${hasNextPage}`);
-
-const currentPageNumber = await jobsPage.getCurrentPageNumber();
-console.log(`Current Page Number: ${currentPageNumber}`);
-
-/** end */
-await page.waitForTimeout(60_000);
+// debugging
+await new Promise(() => {});

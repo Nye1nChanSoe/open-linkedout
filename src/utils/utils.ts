@@ -64,3 +64,15 @@ export async function debugDOMLogs(page: Page) {
     if (text.startsWith("[HISTORY")) console.log(text);
   });
 }
+
+/**
+ * Produces a center-weighted delay with modest natural variation.
+ * @param minMs - Minimum delay in milliseconds.
+ * @param maxMs - Maximum delay in milliseconds.
+ * @returns A single delay duration in milliseconds.
+ */
+export function randomDelay(minMs = 350, maxMs = 950): number {
+  const centerWeightedRandom = (Math.random() + Math.random()) / 2;
+
+  return Math.round(minMs + centerWeightedRandom * (maxMs - minMs));
+}
