@@ -2,18 +2,14 @@ import pc from "picocolors";
 import { chromium, type Page } from "playwright";
 import scraperConfig from "@/config/scraper.config.js";
 import domEventConfig from "@/config/dom-event.config.js";
-import {
-  buildURLParams,
-  resolveProjectPath,
-  debugDOMLogs,
-} from "@/utils/utils.js";
+import { buildURLParams, debugDOMLogs } from "@/utils/utils.js";
 import { JobsSearchPage } from "@/pages/search/job-search-page.js";
 import { Scroller } from "@/pages/search/scroller.js";
 import { Paginator } from "@/pages/search/paginator.js";
 import { Scraper } from "@/pages/search/scraper.js";
 
 const context = await chromium.launchPersistentContext(
-  resolveProjectPath(scraperConfig.PERSISTENT_BROWSER_DATA_PATH),
+  scraperConfig.PERSISTENT_BROWSER_DATA_PATH,
   {
     headless: scraperConfig.IS_HEADLESS,
     viewport: null,

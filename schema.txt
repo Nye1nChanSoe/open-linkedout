@@ -1,0 +1,43 @@
+jobs is the canonical identity
+
+One job record in db = One real linkedin job
+
+jobs
+-----
+- id
+- linkedin_job_id
+- latest known fields (company, location, easy apply etc..)
+- first seen ts
+- last seen ts
+
+
+job discoveries are observations history
+We might scrape different keyword and found the same job again.
+That's where we store that record in job_discoveries
+
+job_discoveries
+---------------
+- keyword
+- location
+- page
+- position
+- is_promoted
+
+so each job can have many job_discoveries.
+
+Transaction:
+BEGIN
+for each scraped job:
+    upsert jobs
+    insert job_discoveries
+COMMIT
+
+
+What happens if I scrape the same page again?
+The same job found under the same
+    - keyword
+    - location
+    - page
+    (NOT position)
+
+    will be treated as the same observation.

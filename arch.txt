@@ -183,3 +183,7 @@ What happens after one page is scraped? by SearchPageTask
 7. Decide whether another page task should be created.
 
 It should ideally happen inside one DB transaction.
+
+
+Quick Note:
+React Flow: scraper → discovery → enrichment → LLM → analysis

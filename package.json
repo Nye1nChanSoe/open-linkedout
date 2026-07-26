@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "scrape": "tsx src/scraper/main.ts"
+    "scrape": "tsx src/scraper/main.ts",
+    "db:migrate": "tsx database/migrate.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.1",

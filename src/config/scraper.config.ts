@@ -1,8 +1,10 @@
+import { resolveProjectPath } from "@/utils/utils.js";
+
 const config = {
   /**
    * For playwright chromium browser persistent
    */
-  PERSISTENT_BROWSER_DATA_PATH: "./data/browser-data",
+  PERSISTENT_BROWSER_DATA_PATH: resolveProjectPath("./data/browser-data"),
 
   /**
    * Browser mode

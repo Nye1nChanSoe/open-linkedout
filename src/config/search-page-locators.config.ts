@@ -10,7 +10,7 @@
  * LinkedIn frequently performs A/B tests and UI changes, so changes to the
  * sidebar structure are the most likely cause of scraper regressions.
  */
-const SEARCH_PAGE_LOCATORS = {
+const locatorConfig = {
   virtualizedCard: "li[data-occludable-job-id]",
   hydratedCard: "div[data-job-id]",
 
@@ -37,4 +37,4 @@ const SEARCH_PAGE_LOCATORS = {
   visuallyHiddenContent: ".visually-hidden",
 } as const;
 
-export default SEARCH_PAGE_LOCATORS;
+export default locatorConfig;

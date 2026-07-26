@@ -6,9 +6,10 @@
     "strict": true,
     "noEmit": true,
     "types": ["node"],
-    "rootDir": "./src",
+    "rootDir": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@database/*": ["./database/*"],
       "@utils/*": ["./src/utils/*"],
       "@config/*": ["./src/config/*"],
       "@scraper/*": ["./src/scraper/*"],
@@ -16,6 +17,6 @@
       "@constants/*": ["./src/constants/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "database/**/*.ts"],
   "exclude": ["node_modules"]
 }

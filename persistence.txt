@@ -1,0 +1,25 @@
+For the data persistence I choose to use sqlite for it's simplicity
+I chose better sqlite3 since it's simply more optimized that node sqlite
+
+I also need to store embeddings later and pg_vector is perfect but i want
+my persistence to be as local and lightweight as possible so sqlite vec might works.
+
+The application is divided into three durable processing stages:
+1. Job-card discovery
+2. Job-detail enrichment
+3. Normalization and LLM analysis
+
+Each stage reads persisted output from the previous stage, performs its own work, 
+and writes its result back to SQLite.
+
+--------------------------------------------------------
+JobCardDiscovery -> Persist -> JobDetailEnrichment -> Persist -> NormalizationNLLMInference -> Persist
+--------------------------------------------------------
+
+- Failed works can be retried
+- No unnecessary repeatation
+- Each stage could potentially run independently 
+- Simpler progress inspection
+
+I used potentially in here since my laptop has limited `RAM`
+> need to find out soon how much can be achieved.
