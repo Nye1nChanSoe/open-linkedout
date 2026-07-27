@@ -3,6 +3,7 @@ import pc from "picocolors";
 import { errors, type Page } from "playwright";
 import { ScrapingError } from "@/app/errors/scraping-error.js";
 import domeventConfig from "@/config/dom-event.config.js";
+import type { RetryContextType } from "@/types/retry.type.js";
 
 /**
  * Resolves a path relative to the project root.
@@ -77,6 +78,38 @@ export function randomDelay(minMs = 350, maxMs = 950): number {
   const centerWeightedRandom = (Math.random() + Math.random()) / 2;
 
   return Math.round(minMs + centerWeightedRandom * (maxMs - minMs));
+}
+
+/**
+ * Waits for a specified duration.
+ * @param delayMs - Delay duration in milliseconds.
+ */
+export function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
+/**
+ * Formats operation details for a concise retry log.
+ * @param context - Retry context for the failed operation.
+ */
+export function formatRetryContext(context: RetryContextType): string {
+  if (context.pageNumber === undefined) {
+    return context.operationName;
+  }
+
+  return `${context.operationName} on page ${context.pageNumber}`;
+}
+
+/**
+ * Formats a duration for retry logs.
+ * @param durationMs - Duration in milliseconds.
+ */
+export function formatDuration(durationMs: number): string {
+  if (durationMs < 60_000) {
+    return `${Math.ceil(durationMs / 1_000)}s`;
+  }
+
+  return `${Math.ceil(durationMs / 60_000)}m`;
 }
 
 /**

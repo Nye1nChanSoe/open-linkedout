@@ -1,0 +1,24 @@
+We got error-classification ready! 
+Now retry logic with retry policies --
+
+The retry system should answer four questions:
+    - Should this error be retried?
+    - How long should we wait?
+    - When should retrying stop?
+    - What operation should be repeated?
+
+
+IMPORTANT: KEEP RETRY SEPARATE FROM ORCHESTRATION TO PREVENT FUTURE HEADACHES
+
+RetryPolicy
+    controls attempts
+    checks retryable errors
+    tracks elapsed time
+    performs delays
+    stops retries
+
+ExponentialBackoff
+    calculates delay only
+
+ScrapeAndPersistOrchestratorService
+    chooses which operation uses retry
