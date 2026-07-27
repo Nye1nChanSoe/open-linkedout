@@ -1,8 +1,8 @@
 import pc from "picocolors";
+import { randomDelay, toScrapingError } from "@/utils/utils.js";
 import { JobsSearchPage } from "./job-search-page.js";
 import type { ScrapedJobType } from "@/types/scraped-job.type.js";
 import { extractJobCardData } from "@/pages/search/extractor.js";
-import { randomDelay } from "@/utils/utils.js";
 
 export class Scroller {
   // deduplicator
@@ -11,31 +11,39 @@ export class Scroller {
   constructor(private readonly jobSearchPage: JobsSearchPage) {}
 
   async autoScrapeCurrentPage(): Promise<ScrapedJobType[]> {
-    await this.jobSearchPage.waitForFirstVirtualizedJobCard();
-    await this.jobSearchPage.waitForFirstHydratedJobCard();
+    try {
+      await this.jobSearchPage.waitForFirstVirtualizedJobCard();
+      await this.jobSearchPage.waitForFirstHydratedJobCard();
 
-    const jobs: ScrapedJobType[] = [];
-    const vSlots = await this.jobSearchPage.virtualizedJobCardCount();
+      const jobs: ScrapedJobType[] = [];
+      const pageJobIds = new Set<string>();
+      const vSlots = await this.jobSearchPage.virtualizedJobCardCount();
 
-    console.info(pc.cyan(`${vSlots} virtualized slots found.`));
+      console.info(pc.cyan(`${vSlots} virtualized slots found.`));
 
-    for (let index = 0; index < vSlots; index++) {
-      try {
+      for (let index = 0; index < vSlots; index++) {
         const job = await this.scrollAndExtract(index);
 
-        if (this.processedJobIds.has(job.jobId)) {
+        if (
+          this.processedJobIds.has(job.jobId) ||
+          pageJobIds.has(job.jobId)
+        ) {
           console.info(pc.yellow(`Already collected job: ${job.jobId}`));
           continue;
         }
 
-        this.processedJobIds.add(job.jobId);
+        pageJobIds.add(job.jobId);
         jobs.push(job);
-      } catch (error) {
-        console.warn(`Failed to extract slot ${index}.`, error);
       }
-    }
 
-    return jobs;
+      for (const job of jobs) {
+        this.processedJobIds.add(job.jobId);
+      }
+
+      return jobs;
+    } catch (error) {
+      throw toScrapingError(error);
+    }
   }
 
   /**

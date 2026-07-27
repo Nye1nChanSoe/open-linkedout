@@ -2,7 +2,11 @@ import pc from "picocolors";
 import { chromium, type Page } from "playwright";
 import scraperConfig from "@/config/scraper.config.js";
 import domEventConfig from "@/config/dom-event.config.js";
-import { buildURLParams, debugDOMLogs } from "@/utils/utils.js";
+import {
+  buildURLParams,
+  debugDOMLogs,
+  toScrapingError,
+} from "@/utils/utils.js";
 import { JobsSearchPage } from "@/pages/search/job-search-page.js";
 import { Scroller } from "@/pages/search/scroller.js";
 import { Paginator } from "@/pages/search/paginator.js";
@@ -11,6 +15,7 @@ import { createDatabaseConnection } from "@database/connection.js";
 import { JobRepository } from "@database/repositories/job.repository.js";
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
 import { ScrapeAndPersistOrchestratorService } from "@/app/services/scrape-and-persist-orchestrator.service.js";
+import { assertAuthenticated } from "@/scraper/authentication.js";
 
 // TODO: THIS IS TEMPORARY SEARCH KEYWORDS
 const SEARCH_KEYWORD = "software engineer";
@@ -29,16 +34,22 @@ await debugDOMLogs(page);
 
 await page.bringToFront();
 
-await page.goto(
-  buildURLParams(
-    scraperConfig.SCRAPE_SITE_URLS.JOB_SEARCH,
-    SEARCH_KEYWORD,
-    SEARCH_LOCATION,
-  ),
-  {
-    waitUntil: domEventConfig.EVENT_DOMCONTENTLOADED,
-  },
-);
+try {
+  await page.goto(
+    buildURLParams(
+      scraperConfig.SCRAPE_SITE_URLS.JOB_SEARCH,
+      SEARCH_KEYWORD,
+      SEARCH_LOCATION,
+    ),
+    {
+      waitUntil: domEventConfig.EVENT_DOMCONTENTLOADED,
+    },
+  );
+} catch (error) {
+  throw toScrapingError(error);
+}
+
+await assertAuthenticated(page);
 
 const conn = createDatabaseConnection();
 const jobRepository = new JobRepository(conn);

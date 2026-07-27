@@ -1,0 +1,43 @@
+Every layer should either handle an error because it knows what to do
+or let it bubble upward.
+
+DO NOT catch errors just to log them and throw again.
+
+current architecture already gives clean place for each decision:
+    - repositories execute SQL
+    - persistence service owns the transaction
+    - orchestrator owns `retry` decisions.
+
+Scraper
+    ↓ throws scraping failures
+
+PersistDiscoveredJobsService
+    ↓ throws persistence failures
+
+ScrapeAndPersistOrchestratorService (BRAIN)
+    ↓ decides retryable vs non-retryable
+
+main.ts
+    ↓ handles final unrecoverable failure
+
+
+---------
+Retryable
+---------
+NETWORK_ERROR
+SCRAPE_TIMEOUT
+temporary BROWSER_ERROR
+DATABASE_BUSY
+
+Non-retryable
+-------------
+AUTHENTICATION_ERROR
+INVALID_SCRAPED_DATA
+DATABASE_ERROR            caused by schema mismatch
+UNKNOWN_ERROR             by default
+
+
+
+Retryable Boundries:
+initial page.goto()
+

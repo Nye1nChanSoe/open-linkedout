@@ -1,6 +1,7 @@
 import path from "node:path";
 import pc from "picocolors";
-import type { Page } from "playwright";
+import { errors, type Page } from "playwright";
+import { ScrapingError } from "@/app/errors/scraping-error.js";
 import domeventConfig from "@/config/dom-event.config.js";
 
 /**
@@ -76,4 +77,59 @@ export function randomDelay(minMs = 350, maxMs = 950): number {
   const centerWeightedRandom = (Math.random() + Math.random()) / 2;
 
   return Math.round(minMs + centerWeightedRandom * (maxMs - minMs));
+}
+
+/**
+ * Converts low-level scraping failures into a classified application error.
+ * @param error - Original Playwright or extraction error.
+ */
+export function toScrapingError(error: unknown): ScrapingError {
+  if (error instanceof ScrapingError) {
+    return error;
+  }
+
+  if (error instanceof errors.TimeoutError) {
+    return new ScrapingError(
+      "Timed out while scraping the LinkedIn results page.",
+      "SCRAPE_TIMEOUT",
+      true,
+      error,
+    );
+  }
+
+  if (isNetworkError(error)) {
+    return new ScrapingError(
+      "Network connection failed while scraping the LinkedIn results page.",
+      "NETWORK_ERROR",
+      true,
+      error,
+    );
+  }
+
+  if (
+    error instanceof Error &&
+    error.message.startsWith("Unable to extract required field:")
+  ) {
+    return new ScrapingError(
+      "LinkedIn returned a job card without required data.",
+      "INVALID_SCRAPED_DATA",
+      false,
+      error,
+    );
+  }
+
+  return new ScrapingError(
+    "Failed while scraping the LinkedIn results page.",
+    "BROWSER_ERROR",
+    false,
+    error,
+  );
+}
+
+/**
+ * Checks whether Playwright reported a browser-network failure.
+ * @param error - Original error thrown by Playwright.
+ */
+function isNetworkError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("net::ERR_");
 }

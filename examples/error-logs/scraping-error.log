@@ -1,0 +1,16 @@
+ScrapingError: Network connection failed while scraping the LinkedIn results page.
+    at toScrapingError (/Users/nyeinchan/Desktop/LinkedOut/src/utils/utils.ts:101:12)
+    at <anonymous> (/Users/nyeinchan/Desktop/LinkedOut/src/scraper/main.ts:49:9) {
+  code: 'NETWORK_ERROR',
+  retryable: true,
+  cause: page.goto: net::ERR_INTERNET_DISCONNECTED at https://www.linkedin.com/jobs/search?keywords=software+engineer&location=bangkok
+  Call log:
+    - navigating to "https://www.linkedin.com/jobs/search?keywords=software+engineer&location=bangkok", waiting until "domcontentloaded"
+  
+      at <anonymous> (/Users/nyeinchan/Desktop/LinkedOut/src/scraper/main.ts:38:14) {
+    log: [
+      '  - navigating to "https://www.linkedin.com/jobs/search?keywords=software+engineer&location=bangkok", waiting until "domcontentloaded"'
+    ],
+    name: 'Error'
+  }
+}

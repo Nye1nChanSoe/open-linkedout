@@ -6,9 +6,13 @@ import type {
 } from "@/types/scrape-and-persist-orchestrator.type.js";
 import { PersistDiscoveredJobsService } from "./persist-discovered-jobs.service.js";
 
+// TODO: Inject RetryPolicy from src/app/retry after error classification is complete.
+
+/**
+ * Orchestrator ONLY decide: run this operation(s) using the retry policy
+ */
 export class ScrapeAndPersistOrchestratorService {
   /**
-   * Creates the page-by-page scrape and persistence orchestrator.
    * @param scroller - Scrapes hydrated jobs from the active results page.
    * @param paginator - Reads and changes LinkedIn result pages.
    * @param persistDiscoveredJobsService - Atomically persists one scraped page.

@@ -1,6 +1,7 @@
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
 import { JobRepository } from "@database/repositories/job.repository.js";
 import pc from "picocolors";
+import { PersistenceError } from "@/app/errors/persistence-error.js";
 import type { DatabaseConnectionType } from "@/types/database.type.js";
 import type {
   PersistDiscoveredJobsInputType,
@@ -16,7 +17,6 @@ export class PersistDiscoveredJobsService {
   ) => PersistDiscoveredJobsResultType;
 
   /**
-   * Creates the page-level discovered jobs persistence service.
    * @param database - Open SQLite database connection.
    * @param jobRepository - Repository for canonical jobs.
    * @param jobDiscoveryRepository - Repository for discovery observations.
@@ -41,40 +41,46 @@ export class PersistDiscoveredJobsService {
   execute(
     input: PersistDiscoveredJobsInputType,
   ): PersistDiscoveredJobsResultType {
-    const result = this.executeTransaction(input);
+    try {
+      const result = this.executeTransaction(input);
 
-    console.info(
-      pc.blueBright("Persisted:"),
-      pc.cyan(`${result.uniqueJobCount} jobs`),
-      pc.dim(
-        `(${result.insertedJobCount} new, ${result.updatedJobCount} updated)`,
-      ),
-      pc.dim("|"),
-      pc.cyan(
-        `${result.insertedDiscoveryCount + result.updatedDiscoveryCount} discoveries`,
-      ),
-      pc.dim(
-        `(${result.insertedDiscoveryCount} new, ${result.updatedDiscoveryCount} updated)`,
-      ),
-    );
+      console.info(
+        pc.blueBright("Persisted:"),
+        pc.cyan(`${result.uniqueJobCount} jobs`),
+        pc.dim(
+          `(${result.insertedJobCount} new, ${result.updatedJobCount} updated)`,
+        ),
+        pc.dim("|"),
+        pc.cyan(
+          `${result.insertedDiscoveryCount + result.updatedDiscoveryCount} discoveries`,
+        ),
+        pc.dim(
+          `(${result.insertedDiscoveryCount} new, ${result.updatedDiscoveryCount} updated)`,
+        ),
+      );
 
-    return result;
+      return result;
+    } catch (error) {
+      const isDatabaseBusy = isDatabaseBusyError(error);
+
+      throw new PersistenceError(
+        `Failed to persist LinkedIn results page ${input.pageNumber}.`,
+        isDatabaseBusy ? "DATABASE_BUSY" : "DATABASE_ERROR",
+        isDatabaseBusy,
+        error,
+      );
+    }
   }
 
   private saveDiscoveredJobs(
     input: PersistDiscoveredJobsInputType,
   ): PersistDiscoveredJobsResultType {
-    // TODO: we could remove later since Scroller already handle deduplication
-    const uniqueJobs = [
-      ...new Map(input.jobs.map((job) => [job.jobId, job])).values(),
-    ];
-
     let insertedJobCount = 0;
     let updatedJobCount = 0;
     let insertedDiscoveryCount = 0;
     let updatedDiscoveryCount = 0;
 
-    for (const [index, scrapedJob] of uniqueJobs.entries()) {
+    for (const [index, scrapedJob] of input.jobs.entries()) {
       const jobResult = this.jobRepository.upsertJob({
         linkedinJobId: scrapedJob.jobId,
         title: scrapedJob.title,
@@ -115,12 +121,24 @@ export class PersistDiscoveredJobsService {
 
     return {
       receivedCount: input.jobs.length,
-      // TODO: we could remove later since Scroller already handle deduplication
-      uniqueJobCount: uniqueJobs.length,
+      uniqueJobCount: input.jobs.length,
       insertedJobCount,
       updatedJobCount,
       insertedDiscoveryCount,
       updatedDiscoveryCount,
     };
   }
+}
+
+/**
+ * Checks whether SQLite rejected the operation because the database is busy.
+ * @param error - Original error thrown by better-sqlite3.
+ */
+function isDatabaseBusyError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "SQLITE_BUSY"
+  );
 }
