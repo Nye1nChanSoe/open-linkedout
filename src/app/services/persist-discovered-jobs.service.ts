@@ -1,15 +1,19 @@
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
 import { JobRepository } from "@database/repositories/job.repository.js";
+import pc from "picocolors";
 import type { DatabaseConnectionType } from "@/types/database.type.js";
 import type {
-  SaveDiscoveredJobsInputType,
-  SaveDiscoveredJobsResultType,
-} from "@/types/save-discover-job.type.js";
+  PersistDiscoveredJobsInputType,
+  PersistDiscoveredJobsResultType,
+} from "@/types/persist-discovered-jobs.type.js";
 
-export class SaveDiscoveredJobsService {
+/**
+ * Atomic database write for ONE scraped page
+ */
+export class PersistDiscoveredJobsService {
   private readonly executeTransaction: (
-    input: SaveDiscoveredJobsInputType,
-  ) => SaveDiscoveredJobsResultType;
+    input: PersistDiscoveredJobsInputType,
+  ) => PersistDiscoveredJobsResultType;
 
   /**
    * Creates the page-level discovered jobs persistence service.
@@ -23,8 +27,9 @@ export class SaveDiscoveredJobsService {
     private readonly jobDiscoveryRepository: JobDiscoveryRepository,
   ) {
     this.executeTransaction = database.transaction(
-      (input: SaveDiscoveredJobsInputType): SaveDiscoveredJobsResultType =>
-        this.saveDiscoveredJobs(input),
+      (
+        input: PersistDiscoveredJobsInputType,
+      ): PersistDiscoveredJobsResultType => this.saveDiscoveredJobs(input),
     );
   }
 
@@ -33,13 +38,32 @@ export class SaveDiscoveredJobsService {
    * @param input - Scraped jobs and their search-page context.
    * @returns Counts from the completed page save.
    */
-  execute(input: SaveDiscoveredJobsInputType): SaveDiscoveredJobsResultType {
-    return this.executeTransaction(input);
+  execute(
+    input: PersistDiscoveredJobsInputType,
+  ): PersistDiscoveredJobsResultType {
+    const result = this.executeTransaction(input);
+
+    console.info(
+      pc.blueBright("Persisted:"),
+      pc.cyan(`${result.uniqueJobCount} jobs`),
+      pc.dim(
+        `(${result.insertedJobCount} new, ${result.updatedJobCount} updated)`,
+      ),
+      pc.dim("|"),
+      pc.cyan(
+        `${result.insertedDiscoveryCount + result.updatedDiscoveryCount} discoveries`,
+      ),
+      pc.dim(
+        `(${result.insertedDiscoveryCount} new, ${result.updatedDiscoveryCount} updated)`,
+      ),
+    );
+
+    return result;
   }
 
   private saveDiscoveredJobs(
-    input: SaveDiscoveredJobsInputType,
-  ): SaveDiscoveredJobsResultType {
+    input: PersistDiscoveredJobsInputType,
+  ): PersistDiscoveredJobsResultType {
     // TODO: we could remove later since Scroller already handle deduplication
     const uniqueJobs = [
       ...new Map(input.jobs.map((job) => [job.jobId, job])).values(),

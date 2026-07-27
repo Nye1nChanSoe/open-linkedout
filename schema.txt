@@ -10,6 +10,8 @@ jobs
 - first seen ts
 - last seen ts
 
+Answers: "What's this LinkedIn job's latest known data?"
+
 
 job discoveries are observations history
 We might scrape different keyword and found the same job again.
@@ -24,6 +26,8 @@ job_discoveries
 - is_promoted
 
 so each job can have many job_discoveries.
+
+Answer: "When and Where did this job appear in our search results?"
 
 Transaction:
 BEGIN

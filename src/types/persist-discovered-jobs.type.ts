@@ -1,7 +1,7 @@
 import type { ScrapedJobType } from "@/types/scraped-job.type.js";
 
 /** Scraped jobs and search context from one LinkedIn results page. */
-export type SaveDiscoveredJobsInputType = {
+export type PersistDiscoveredJobsInputType = {
   keyword: string;
   searchLocation: string;
   pageNumber: number;
@@ -9,7 +9,7 @@ export type SaveDiscoveredJobsInputType = {
 };
 
 /** Counts produced after saving one LinkedIn results page. */
-export type SaveDiscoveredJobsResultType = {
+export type PersistDiscoveredJobsResultType = {
   receivedCount: number;
   uniqueJobCount: number;
   insertedJobCount: number;
