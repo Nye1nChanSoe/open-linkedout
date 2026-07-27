@@ -16,6 +16,7 @@ import { JobRepository } from "@database/repositories/job.repository.js";
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
 import { ScrapeAndPersistOrchestratorService } from "@/app/services/scrape-and-persist-orchestrator.service.js";
 import { assertAuthenticated } from "@/scraper/authentication.js";
+import { RetryPolicy } from "@/app/retry/retry-policy.js";
 
 // TODO: THIS IS TEMPORARY SEARCH KEYWORDS
 const SEARCH_KEYWORD = "software engineer";
@@ -30,24 +31,30 @@ const context = await chromium.launchPersistentContext(
 );
 
 const page = context.pages()[0] ?? (await context.newPage());
+const retryPolicy = new RetryPolicy();
 await debugDOMLogs(page);
 
 await page.bringToFront();
 
-try {
-  await page.goto(
-    buildURLParams(
-      scraperConfig.SCRAPE_SITE_URLS.JOB_SEARCH,
-      SEARCH_KEYWORD,
-      SEARCH_LOCATION,
-    ),
-    {
-      waitUntil: domEventConfig.EVENT_DOMCONTENTLOADED,
-    },
-  );
-} catch (error) {
-  throw toScrapingError(error);
-}
+await retryPolicy.execute(
+  { operationName: "navigate to LinkedIn job search" },
+  async () => {
+    try {
+      return await page.goto(
+        buildURLParams(
+          scraperConfig.SCRAPE_SITE_URLS.JOB_SEARCH,
+          SEARCH_KEYWORD,
+          SEARCH_LOCATION,
+        ),
+        {
+          waitUntil: domEventConfig.EVENT_DOMCONTENTLOADED,
+        },
+      );
+    } catch (error) {
+      throw toScrapingError(error);
+    }
+  },
+);
 
 await assertAuthenticated(page);
 
@@ -70,6 +77,7 @@ const orchestor = new ScrapeAndPersistOrchestratorService(
   scroller,
   paginator,
   persistJobService,
+  retryPolicy,
 );
 
 await orchestor.execute({
