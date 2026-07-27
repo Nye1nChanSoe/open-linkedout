@@ -1,6 +1,6 @@
 import pc from "picocolors";
 import { JobsSearchPage } from "./job-search-page.js";
-import { JobType } from "@/types/job.type.js";
+import type { ScrapedJobType } from "@/types/scraped-job.type.js";
 import { extractJobCardData } from "@/pages/search/extractor.js";
 import { randomDelay } from "@/utils/utils.js";
 
@@ -10,11 +10,11 @@ export class Scroller {
 
   constructor(private readonly jobSearchPage: JobsSearchPage) {}
 
-  async autoScrapeCurrentPage(): Promise<JobType[]> {
+  async autoScrapeCurrentPage(): Promise<ScrapedJobType[]> {
     await this.jobSearchPage.waitForFirstVirtualizedJobCard();
     await this.jobSearchPage.waitForFirstHydratedJobCard();
 
-    const jobs: JobType[] = [];
+    const jobs: ScrapedJobType[] = [];
     const vSlots = await this.jobSearchPage.virtualizedJobCardCount();
 
     console.info(pc.cyan(`${vSlots} virtualized slots found.`));
@@ -42,7 +42,7 @@ export class Scroller {
    * Scroll each card and extract job data
    * using external `extractJobCardData` method
    */
-  private async scrollAndExtract(index: number): Promise<JobType> {
+  private async scrollAndExtract(index: number): Promise<ScrapedJobType> {
     const slot = this.jobSearchPage.virtualizedJobCardAt(index);
     await slot.waitFor({ state: "attached", timeout: 1000 });
     await slot.scrollIntoViewIfNeeded({ timeout: 1000 });

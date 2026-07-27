@@ -40,4 +40,9 @@ The same job found under the same
     - page
     (NOT position)
 
-    will be treated as the same observation.
+    will be treated as the same observation
+    meaning no new record should be created but upsert.
+
+
+Terminologies--
+Statement: A single complete instruction written in sql that tells db engine to perform specific action.

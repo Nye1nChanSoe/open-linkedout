@@ -1,5 +1,5 @@
 import pc from "picocolors";
-import { JobType } from "@/types/job.type.js";
+import type { ScrapedJobType } from "@/types/scraped-job.type.js";
 import { Paginator } from "./paginator.js";
 import { Scroller } from "./scroller.js";
 
@@ -9,8 +9,8 @@ export class Scraper {
     private readonly paginator: Paginator,
   ) {}
 
-  async autoScrape(maxPages = 5): Promise<JobType[]> {
-    const jobs: JobType[] = [];
+  async autoScrape(maxPages = 5): Promise<ScrapedJobType[]> {
+    const jobs: ScrapedJobType[] = [];
 
     for (let page = 1; page <= maxPages; page++) {
       console.info(pc.cyan(`Scraping page ${page}/${maxPages}...`));

@@ -1,4 +1,4 @@
-import type { JobType } from "@/types/job.type.js";
+import type { ScrapedJobType } from "@/types/scraped-job.type.js";
 import type { Locator } from "playwright";
 
 import searchPageLocatorConfig from "@/config/search-page-locators.config.js";
@@ -6,7 +6,9 @@ import searchPageLocatorConfig from "@/config/search-page-locators.config.js";
 /**
  * Extracts structured data from one hydrated LinkedIn job card.
  */
-export async function extractJobCardData(hydratedCard: Locator): Promise<JobType> {
+export async function extractJobCardData(
+  hydratedCard: Locator,
+): Promise<ScrapedJobType> {
   const {
     jobIdAttribute,
     title,

@@ -7,6 +7,14 @@ import { JobsSearchPage } from "@/pages/search/job-search-page.js";
 import { Scroller } from "@/pages/search/scroller.js";
 import { Paginator } from "@/pages/search/paginator.js";
 import { Scraper } from "@/pages/search/scraper.js";
+import { SaveDiscoveredJobsService } from "@/app/services/save-discover-job.service.js";
+import { createDatabaseConnection } from "@database/connection.js";
+import { JobRepository } from "@database/repositories/job.repository.js";
+import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
+
+// TODO: THIS IS TEMPORARY SEARCH KEYWORDS
+const SEARCH_KEYWORD = "software engineer";
+const SEARCH_LOCATION = "bangkok";
 
 const context = await chromium.launchPersistentContext(
   scraperConfig.PERSISTENT_BROWSER_DATA_PATH,
@@ -24,8 +32,8 @@ await page.bringToFront();
 await page.goto(
   buildURLParams(
     scraperConfig.SCRAPE_SITE_URLS.JOB_SEARCH,
-    "software engineer",
-    "bangkok",
+    SEARCH_KEYWORD,
+    SEARCH_LOCATION,
   ),
   {
     waitUntil: domEventConfig.EVENT_DOMCONTENTLOADED,
@@ -127,7 +135,22 @@ const jobSearchPage = new JobsSearchPage(page);
 const scroller = new Scroller(jobSearchPage);
 const paginator = new Paginator(jobSearchPage);
 const scraper = new Scraper(scroller, paginator);
-await scraper.autoScrape(5);
+const scrapedJobs = await scraper.autoScrape(1);
+
+const conn = createDatabaseConnection();
+const jobRepository = new JobRepository(conn);
+const jobDiscoveryRepository = new JobDiscoveryRepository(conn);
+const savePageService = new SaveDiscoveredJobsService(
+  conn,
+  jobRepository,
+  jobDiscoveryRepository,
+);
+savePageService.execute({
+  keyword: SEARCH_KEYWORD,
+  searchLocation: SEARCH_LOCATION,
+  pageNumber: 1,
+  jobs: scrapedJobs,
+});
 
 // debugging
 await new Promise(() => {});
