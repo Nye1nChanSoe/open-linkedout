@@ -1,0 +1,30 @@
+[HISTORY pushState] /jobs/search/?currentJobId=4404264157&keywords=software%20engineer&location=bangkok&start=50
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software%20engineer&location=bangkok&start=50
+[SCRAPE_TIMEOUT] Retrying navigate to next page on page 2 in 5s (retry 1, elapsed 16s).
+[NETWORK_ERROR] Retrying navigate to next page on page 2 in 12s (retry 2, elapsed 21s).
+[NAVIGATION] chrome-error://chromewebdata/
+[DOM CONTENT LOADED] chrome-error://chromewebdata/
+[LOAD] chrome-error://chromewebdata/
+[NETWORK_ERROR] Retrying navigate to next page on page 2 in 23s (retry 3, elapsed 32s).
+[NAVIGATION] chrome-error://chromewebdata/
+[DOM CONTENT LOADED] chrome-error://chromewebdata/
+[LOAD] chrome-error://chromewebdata/
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[HISTORY replaceState] /jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[DOM CONTENT LOADED] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[LOAD] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[HISTORY replaceState] /jobs/search/?currentJobId=4404264157&keywords=software%20engineer&location=bangkok&start=50
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software%20engineer&location=bangkok&start=50
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[HISTORY replaceState] /jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[DOM CONTENT LOADED] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[LOAD] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software+engineer&location=bangkok&start=50
+[HISTORY replaceState] /jobs/search/?currentJobId=4404264157&keywords=software%20engineer&location=bangkok&start=50
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software%20engineer&location=bangkok&start=50
+25 virtualized slots found.
+Extracted : Software Engineer (Node.js/React) | Remote | (4437945981)
+Extracted : Full Stack Engineer | (4401409527)
+Extracted : Frontend Developer - TypeScript (Remote) | (4445457880)
+Extracted : JavaScript Developer (Remote) | (4445473205)

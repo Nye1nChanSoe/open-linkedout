@@ -180,11 +180,12 @@ export class JobsSearchPage {
   }
 
   /**
-   * Reloads the current LinkedIn search URL.
-   * @param timeout - Maximum reload time in milliseconds.
+   * Navigates directly to a LinkedIn search URL.
+   * @param url - LinkedIn URL to load.
+   * @param timeout - Maximum navigation time in milliseconds.
    */
-  async reloadCurrentPage(timeout = 30_000): Promise<void> {
-    await this.page.reload({
+  async navigateToUrl(url: string, timeout = 15_000): Promise<void> {
+    await this.page.goto(url, {
       waitUntil: domEventConfig.EVENT_DOMCONTENTLOADED,
       timeout,
     });

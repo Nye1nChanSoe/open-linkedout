@@ -1,9 +1,6 @@
 import { JobsSearchPage } from "./job-search-page.js";
 import scraperConfig from "@/config/scraper.config.js";
-import type {
-  PaginatorNavigationSnapshotType,
-  PaginatorRecoveryStateType,
-} from "@/types/pagination-state.type.js";
+import type { PaginatorPendingNavigationType } from "@/types/pagination-state.type.js";
 import { toScrapingError } from "@/utils/utils.js";
 
 /**
@@ -14,9 +11,7 @@ import { toScrapingError } from "@/utils/utils.js";
  * clickNextPage() <-> goToNextPage()
  */
 export class Paginator {
-  private pendingNavigationSnapshot:
-    | PaginatorNavigationSnapshotType
-    | undefined;
+  private pendingNavigation: PaginatorPendingNavigationType | undefined;
 
   constructor(private readonly jobSearchPage: JobsSearchPage) {}
 
@@ -73,113 +68,48 @@ export class Paginator {
    */
   async goToNextPage(timeout = 15_000): Promise<number> {
     try {
-      const snapshot =
-        this.pendingNavigationSnapshot ??
-        (await this.createNavigationSnapshot());
-      this.pendingNavigationSnapshot = snapshot;
-
-      const recoveryState = await this.getRecoveryState(snapshot);
-
-      if (recoveryState === "ORIGINAL_PAGE") {
+      if (!this.pendingNavigation) {
+        this.pendingNavigation = await this.createPendingNavigation();
         await this.clickNextPage();
-        return await this.waitForTargetPageReady(snapshot, timeout);
+      } else {
+        await this.jobSearchPage.navigateToUrl(
+          this.pendingNavigation.targetUrl,
+          timeout,
+        );
       }
 
-      if (recoveryState === "TARGET_PAGE_READY") {
-        return await this.completeNavigation();
-      }
-
-      if (recoveryState === "TARGET_PAGE_STALE") {
-        await this.jobSearchPage.reloadCurrentPage(timeout);
-        return await this.waitForTargetPageReady(snapshot, timeout);
-      }
-
-      throw new Error(
-        `LinkedIn moved to an unexpected pagination offset: ${this.jobSearchPage.getCurrentStartOffset()}.`,
+      await this.jobSearchPage.waitForHydratedJobFingerprintChange(
+        this.pendingNavigation.originalHydratedJobFingerprint,
+        timeout,
       );
+
+      const pageNumber = await this.getCurrentPageNumber();
+      this.pendingNavigation = undefined;
+
+      return pageNumber;
     } catch (error) {
       throw toScrapingError(error);
     }
   }
 
   /**
-   * Captures the current result state before next-page navigation starts.
-   * @returns Original and target offsets with the current job-card fingerprint.
+   * Captures the target URL and current result snapshot before clicking Next.
+   * @returns Pending next-page navigation state.
    */
-  private async createNavigationSnapshot(): Promise<PaginatorNavigationSnapshotType> {
+  private async createPendingNavigation(): Promise<PaginatorPendingNavigationType> {
     const originalStartOffset = this.jobSearchPage.getCurrentStartOffset();
+    const targetUrl = new URL(this.jobSearchPage.currentUrl());
+
+    // optimistic saving :)
+    targetUrl.searchParams.set(
+      "start",
+      String(originalStartOffset + scraperConfig.LINKEDIN_RESULTS_PER_PAGE),
+    );
 
     return {
-      originalStartOffset,
-      targetStartOffset:
-        originalStartOffset + scraperConfig.LINKEDIN_RESULTS_PER_PAGE,
+      targetUrl: targetUrl.toString(),
       originalHydratedJobFingerprint:
         await this.jobSearchPage.getHydratedJobFingerprint(),
     };
-  }
-
-  /**
-   * Classifies the current page against an in-progress navigation snapshot.
-   * @param snapshot - Original state captured before clicking Next.
-   * @returns Recovery state for the current URL and rendered results.
-   */
-  private async getRecoveryState(
-    snapshot: PaginatorNavigationSnapshotType,
-  ): Promise<PaginatorRecoveryStateType> {
-    const currentStartOffset = this.jobSearchPage.getCurrentStartOffset();
-
-    if (currentStartOffset === snapshot.originalStartOffset) {
-      return "ORIGINAL_PAGE";
-    }
-
-    if (currentStartOffset !== snapshot.targetStartOffset) {
-      return "UNEXPECTED_PAGE";
-    }
-
-    const currentFingerprint =
-      await this.jobSearchPage.getHydratedJobFingerprint();
-
-    if (currentFingerprint === snapshot.originalHydratedJobFingerprint) {
-      return "TARGET_PAGE_STALE";
-    }
-
-    return "TARGET_PAGE_READY";
-  }
-
-  /**
-   * Waits for fresh results, then verifies that the target page is ready.
-   * @param snapshot - Navigation state captured before clicking Next.
-   * @param timeout - Maximum wait time for a changed result fingerprint.
-   * @returns Confirmed LinkedIn page number after navigation.
-   */
-  private async waitForTargetPageReady(
-    snapshot: PaginatorNavigationSnapshotType,
-    timeout: number,
-  ): Promise<number> {
-    await this.jobSearchPage.waitForHydratedJobFingerprintChange(
-      snapshot.originalHydratedJobFingerprint,
-      timeout,
-    );
-
-    const recoveryState = await this.getRecoveryState(snapshot);
-
-    if (recoveryState !== "TARGET_PAGE_READY") {
-      throw new Error(
-        `LinkedIn did not reach a ready target page: ${recoveryState}.`,
-      );
-    }
-
-    return this.completeNavigation();
-  }
-
-  /**
-   * Clears completed navigation state and returns the active LinkedIn page.
-   * @returns Confirmed LinkedIn page number after navigation.
-   */
-  private async completeNavigation(): Promise<number> {
-    const pageNumber = await this.getCurrentPageNumber();
-    this.pendingNavigationSnapshot = undefined;
-
-    return pageNumber;
   }
 }
