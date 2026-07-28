@@ -1,0 +1,23 @@
+<!-- Trimmed LinkedIn AI match-details loading DOM reference. -->
+<section class="coach-message-list__body">
+  <article
+    class="coach-message"
+    aria-busy="false"
+    data-coach-message-role="USER"
+    data-coach-message-loading-status="NOT_STARTED"
+  >
+    <p class="coach-message__user-query">Show match details</p>
+  </article>
+
+  <article
+    class="coach-message"
+    aria-busy="true"
+    data-coach-message-role="ASSISTANT"
+    data-coach-message-loading-status="SYNC_GQL_REQUEST"
+  >
+    <div aria-label="AI response" role="region">
+      <span aria-live="polite">Loading more content</span>
+      <div class="coach-assistant-loading-phrases"></div>
+    </div>
+  </article>
+</section>

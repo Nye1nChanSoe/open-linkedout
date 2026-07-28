@@ -8,7 +8,7 @@ import type {
   DBSchedulerTaskRowType,
   DiscoveryRunTaskPayloadType,
 } from "@/types/scheduler-task.type.js";
-import { buildURLParams, toScrapingError } from "@/utils/utils.js";
+import { buildSearchURLParams, toScrapingError } from "@/utils/utils.js";
 import type { Page } from "playwright";
 
 /**
@@ -54,7 +54,7 @@ export class DiscoveryRunWorker implements SchedulerTaskWorkerType {
       async () => {
         try {
           await this.page.goto(
-            buildURLParams(
+            buildSearchURLParams(
               scraperConfig.SCRAPE_SITE_URLS.JOB_SEARCH,
               payload.keyword,
               payload.searchLocation,

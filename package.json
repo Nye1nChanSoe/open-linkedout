@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "scrape": "tsx src/scraper/main.ts",
     "scheduler": "tsx src/scheduler/main.ts",
+    "typecheck": "tsc --noEmit",
+    "scrape:search": "tsx src/scraper/main.ts",
+    "scrape:detail": "tsx src/scraper/detail-page.ts",
     "db:migrate": "tsx database/migrate.ts"
   },
   "dependencies": {

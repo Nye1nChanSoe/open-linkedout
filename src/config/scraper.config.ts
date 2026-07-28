@@ -31,6 +31,7 @@ const config = {
   SCRAPE_SITE_URLS: {
     JOB_SEARCH: "https://www.linkedin.com/jobs/search",
     JOB_SEARCH_RESULTS: "https://www.linkedin.com/jobs/search-results",
+    JOB_DETAIL: "https://www.linkedin.com/jobs/view/",
   },
 } as const;
 

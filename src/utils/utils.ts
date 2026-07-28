@@ -20,7 +20,7 @@ export function resolveProjectPath(segment: string): string {
  * @param job - Keyword and location pair.
  * @returns URL containing the encoded job-search parameters.
  */
-export function buildURLParams(
+export function buildSearchURLParams(
   url: string,
   keyword: string,
   location: string,
@@ -31,6 +31,16 @@ export function buildURLParams(
   searchUrl.searchParams.set("location", location);
 
   return searchUrl.toString();
+}
+
+/**
+ * Builds the active LinkedIn /jobs/view/${job-id} URL.
+ * @param url - LinkedIn job-search base URL.
+ * @param jobID - LinkedIn Job ID
+ * @returns URL containing the encoded job-view parameters.
+ */
+export function buildDetailViewURLParams(url: string, jobID: string): string {
+  return new URL(jobID, url).toString();
 }
 
 export async function debugDOMLogs(page: Page) {

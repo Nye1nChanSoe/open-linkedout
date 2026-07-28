@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import scraperConfig from "@/config/scraper.config.js";
 import domEventConfig from "@/config/dom-event.config.js";
 import {
-  buildURLParams,
+  buildSearchURLParams,
   debugDOMLogs,
   toScrapingError,
 } from "@/utils/utils.js";
@@ -40,7 +40,7 @@ await retryPolicy.execute(
   async () => {
     try {
       return await page.goto(
-        buildURLParams(
+        buildSearchURLParams(
           scraperConfig.SCRAPE_SITE_URLS.JOB_SEARCH,
           SEARCH_KEYWORD,
           SEARCH_LOCATION,
