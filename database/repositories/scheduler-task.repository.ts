@@ -154,8 +154,9 @@ export class SchedulerTaskRepository {
     `,
       );
 
-    this.markFailedStatement = database.prepare<MarkSchedulerTaskFailedParamsType>(
-      `
+    this.markFailedStatement =
+      database.prepare<MarkSchedulerTaskFailedParamsType>(
+        `
       UPDATE scheduler_tasks
       SET
         status = @failed_status,
@@ -165,7 +166,7 @@ export class SchedulerTaskRepository {
         updated_at = @updated_at
       WHERE id = @id;
     `,
-    );
+      );
   }
 
   /**

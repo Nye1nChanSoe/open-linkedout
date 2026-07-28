@@ -1,0 +1,30 @@
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4407198436&keywords=software%20engineer&location=bangkok&start=75
+25 virtualized slots found.
+Extracted : Binance Accelerator Program - Frontend Engineer (for current students) | (4407198436)
+Extracted : Software Engineer (Node.js/React) | Remote | (4437945981)
+Extracted : Software Engineer (.NET / ASP.NET Core / Java) | (4442568797)
+Extracted : Software Engineer (Bangkok) | (4440635789)
+Extracted : Frontend Developer (React) (Remote) | (4445461738)
+Extracted : Javascript Developer - Remote | (4438952918)
+Extracted : Cloud Engineer (Microsoft 365) | (4444801649)
+/Users/nyeinchan/Desktop/LinkedOut/src/utils/utils.ts:146
+    return new ScrapingError(
+           ^
+
+ScrapingError: LinkedIn returned a job card without required data.
+    at toScrapingError (/Users/nyeinchan/Desktop/LinkedOut/src/utils/utils.ts:146:12)
+    at Scroller.autoScrapeCurrentPage (/Users/nyeinchan/Desktop/LinkedOut/src/pages/search/scroller.ts:45:13)
+    at async RetryPolicy.execute (/Users/nyeinchan/Desktop/LinkedOut/src/app/retry/retry-policy.ts:38:16)
+    at async ScrapeAndPersistOrchestratorService.execute (/Users/nyeinchan/Desktop/LinkedOut/src/app/services/scrape-and-persist-orchestrator.service.ts:48:20)
+    at async <anonymous> (/Users/nyeinchan/Desktop/LinkedOut/src/scraper/main.ts:82:1) {
+  code: 'INVALID_SCRAPED_DATA',
+  retryable: false,
+  cause: Error: Unable to extract required field: company.
+      at requiredText (/Users/nyeinchan/Desktop/LinkedOut/src/pages/search/extractor.ts:77:11)
+      at async extractJobCardData (/Users/nyeinchan/Desktop/LinkedOut/src/pages/search/extractor.ts:40:14)
+      at async Scroller.scrollAndExtract (/Users/nyeinchan/Desktop/LinkedOut/src/pages/search/scroller.ts:65:17)
+      at async Scroller.autoScrapeCurrentPage (/Users/nyeinchan/Desktop/LinkedOut/src/pages/search/scroller.ts:25:21)
+      at async RetryPolicy.execute (/Users/nyeinchan/Desktop/LinkedOut/src/app/retry/retry-policy.ts:38:16)
+      at async ScrapeAndPersistOrchestratorService.execute (/Users/nyeinchan/Desktop/LinkedOut/src/app/services/scrape-and-persist-orchestrator.service.ts:48:20)
+      at async <anonymous> (/Users/nyeinchan/Desktop/LinkedOut/src/scraper/main.ts:82:1)
+}

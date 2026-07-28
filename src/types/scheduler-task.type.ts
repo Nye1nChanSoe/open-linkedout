@@ -2,11 +2,17 @@
  * Durable lifecycle states for a scheduler task.
  */
 export type SchedulerTaskStatusType =
+  /** Waiting for the scheduler to claim it. */
   | "pending"
+  /** Claimed and currently being executed by a worker. */
   | "running"
+  /** Waiting until its next eligible retry time. */
   | "retry_wait"
+  /** Finished successfully. */
   | "completed"
+  /** Stopped after a non-retryable or final failure. */
   | "failed"
+  /** Stopped intentionally and never run automatically. */
   | "cancelled";
 
 // currently support only one scheduler task type

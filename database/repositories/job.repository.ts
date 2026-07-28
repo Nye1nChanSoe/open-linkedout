@@ -156,8 +156,8 @@ export class JobRepository {
       this.updateJobStatement.run({
         id: existingJob.id,
         title: input.title,
-        company: input.company,
-        location: input.location,
+        company: input.company ?? null,
+        location: input.location ?? null,
         canonical_url: input.canonicalUrl,
         logo_image_url: input.logoImageUrl ?? null,
         posted_date: input.postedDate ?? null,
@@ -180,8 +180,8 @@ export class JobRepository {
     const insertParams: InsertJobParamsType = {
       linkedin_job_id: input.linkedinJobId,
       title: input.title,
-      company: input.company,
-      location: input.location,
+      company: input.company ?? null,
+      location: input.location ?? null,
       canonical_url: input.canonicalUrl,
       logo_image_url: input.logoImageUrl ?? null,
       posted_date: input.postedDate ?? null,

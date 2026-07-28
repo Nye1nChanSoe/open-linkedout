@@ -2,8 +2,8 @@ export type ScrapedJobType = {
   jobId: string;
   title: string;
   url: string;
-  company: string;
-  location: string;
+  company?: string;
+  location?: string;
 
   logoImageUrl?: string;
 

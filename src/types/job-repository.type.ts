@@ -5,8 +5,8 @@ export type DBJobRowType = {
   id: number;
   linkedin_job_id: string;
   title: string;
-  company: string;
-  location: string;
+  company: string | null;
+  location: string | null;
   canonical_url: string;
   logo_image_url: string | null;
   posted_date: string | null;
@@ -35,8 +35,8 @@ export type InsertJobParamsType = Omit<DBJobRowType, "id">;
 export type UpdateJobParamsType = {
   id: number;
   title: string;
-  company: string;
-  location: string;
+  company: string | null;
+  location: string | null;
   canonical_url: string;
   logo_image_url: string | null;
   posted_date: string | null;
@@ -53,8 +53,8 @@ export type UpdateJobParamsType = {
 export type JobUpsertInputType = {
   linkedinJobId: string;
   title: string;
-  company: string;
-  location: string;
+  company?: string;
+  location?: string;
   canonicalUrl: string;
   logoImageUrl?: string;
   postedDate?: string;

@@ -24,10 +24,7 @@ export class Scroller {
       for (let index = 0; index < vSlots; index++) {
         const job = await this.scrollAndExtract(index);
 
-        if (
-          this.processedJobIds.has(job.jobId) ||
-          pageJobIds.has(job.jobId)
-        ) {
+        if (this.processedJobIds.has(job.jobId) || pageJobIds.has(job.jobId)) {
           console.info(pc.yellow(`Already collected job: ${job.jobId}`));
           continue;
         }
@@ -52,15 +49,15 @@ export class Scroller {
    */
   private async scrollAndExtract(index: number): Promise<ScrapedJobType> {
     const slot = this.jobSearchPage.virtualizedJobCardAt(index);
-    await slot.waitFor({ state: "attached", timeout: 1000 });
-    await slot.scrollIntoViewIfNeeded({ timeout: 1000 });
+    await slot.waitFor({ state: "attached", timeout: 1_000 });
+    await slot.scrollIntoViewIfNeeded({ timeout: 1_000 });
 
     // Brief center-weighted pause between job cards.
     await slot.page().waitForTimeout(randomDelay());
 
     const refreshedSlot = this.jobSearchPage.virtualizedJobCardAt(index);
-    const hydratedCard = this.jobSearchPage.hydratedJobCard(refreshedSlot);
-    await hydratedCard.waitFor({ state: "attached", timeout: 1_000 });
+    const hydratedCard =
+      await this.jobSearchPage.waitForHydratedJobCardContent(refreshedSlot);
 
     const job = await extractJobCardData(hydratedCard);
     console.info(

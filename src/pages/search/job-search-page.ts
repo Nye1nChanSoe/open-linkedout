@@ -207,7 +207,26 @@ export class JobsSearchPage {
   }
 
   hydratedJobCard(slot: Locator): Locator {
-    return slot.locator("div[data-job-id]");
+    return slot.locator(searchPageLocatorConfig.hydratedCard);
+  }
+
+  /**
+   * Waits until a slot contains a hydrated card with visible required content.
+   * @param slot - Virtualized slot containing the hydrated job card.
+   * @param timeout - Maximum wait time in milliseconds.
+   */
+  async waitForHydratedJobCardContent(
+    slot: Locator,
+    timeout = 5_000,
+  ): Promise<Locator> {
+    const hydratedCard = this.hydratedJobCard(slot);
+    await hydratedCard
+      .locator(searchPageLocatorConfig.title)
+      .first()
+      .filter({ hasText: /\S/ })
+      .waitFor({ state: "visible", timeout });
+
+    return hydratedCard;
   }
 
   hydratedJobCardAt(index: number): Locator {

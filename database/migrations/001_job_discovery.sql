@@ -17,10 +17,10 @@ CREATE TABLE jobs (
      *
      * These values may be refreshed whenever the same LinkedIn
      * job is discovered again.
-     */
+    */
     title TEXT NOT NULL,
-    company TEXT NOT NULL,
-    location TEXT NOT NULL,
+    company TEXT,
+    location TEXT,
     canonical_url TEXT NOT NULL,
 
     logo_image_url TEXT,

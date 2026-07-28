@@ -37,15 +37,9 @@ export async function extractJobCardData(
       "https://www.linkedin.com",
     ).toString(),
 
-    company: await requiredText(
-      hydratedCard.locator(company).first(),
-      "company",
-    ),
+    company: await optionalText(hydratedCard.locator(company).first()),
 
-    location: await requiredText(
-      hydratedCard.locator(location).first(),
-      "location",
-    ),
+    location: await optionalText(hydratedCard.locator(location).first()),
 
     logoImageUrl: await optionalAttribute(
       hydratedCard.locator(logoImage).first(),

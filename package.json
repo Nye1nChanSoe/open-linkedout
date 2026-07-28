@@ -6,6 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "scrape": "tsx src/scraper/main.ts",
+    "scheduler": "tsx src/scheduler/main.ts",
     "db:migrate": "tsx database/migrate.ts"
   },
   "dependencies": {
