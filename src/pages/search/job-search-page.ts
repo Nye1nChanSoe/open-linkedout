@@ -1,3 +1,5 @@
+import domEventConfig from "@/config/dom-event.config.js";
+import searchPageLocatorConfig from "@/config/search-page-locators.config.js";
 import type { Locator, Page } from "playwright";
 
 /**
@@ -45,9 +47,12 @@ export class JobsSearchPage {
     this.keywordInput = page.getByLabel("Search by title, skill, or company");
     this.locationInput = page.getByLabel("City, state, or zip code");
 
-    this.virtualizedJobCards = page.locator("li[data-occludable-job-id]");
-    this.hydratedJobCards =
-      this.virtualizedJobCards.locator("div[data-job-id]");
+    this.virtualizedJobCards = page.locator(
+      searchPageLocatorConfig.virtualizedCard,
+    );
+    this.hydratedJobCards = this.virtualizedJobCards.locator(
+      searchPageLocatorConfig.hydratedCard,
+    );
 
     this.filtersButton = page.getByRole("button", {
       name: "All filters",
@@ -94,6 +99,102 @@ export class JobsSearchPage {
       state: "visible",
       timeout,
     });
+  }
+
+  /**
+   * Returns the LinkedIn search pagination offset from the current URL.
+   *
+   * Page 1 normally has no `start` parameter, so it is treated as offset 0.
+   */
+  getCurrentStartOffset(): number {
+    const url = new URL(this.page.url());
+    const rawStartOffset = url.searchParams.get("start");
+
+    if (rawStartOffset === null) return 0;
+
+    const startOffset = Number(rawStartOffset);
+
+    if (!Number.isInteger(startOffset) || startOffset < 0)
+      throw new Error(
+        `Invalid LinkedIn pagination offset: "${rawStartOffset}"`,
+      );
+
+    return startOffset;
+  }
+
+  /**
+   * Creates a stable fingerprint from currently hydrated job-card IDs.
+   *
+   * This represents the rendered result snapshot, not the URL state.
+   */
+  async getHydratedJobFingerprint(): Promise<string> {
+    await this.waitForFirstHydratedJobCard();
+    const jobIds = await this.hydratedJobCards.evaluateAll(
+      (cards, jobIdAttribute) =>
+        cards
+          .map((card) => card.getAttribute(jobIdAttribute))
+          .filter((jobId): jobId is string => Boolean(jobId)),
+      searchPageLocatorConfig.jobIdAttribute,
+    );
+
+    return jobIds.join("|");
+  }
+
+  /**
+   * Waits until the currently rendered hydrated job cards differ from
+   * a previous result snapshot.
+   *
+   * This is used to verify that LinkedIn has rendered a new search page,
+   * not just updated the URL or pagination state.
+   *
+   * @param previousFingerprint - Hydrated job-card fingerprint before navigation.
+   * @param timeout - Maximum wait time in milliseconds.
+   */
+  async waitForHydratedJobFingerprintChange(
+    previousFingerprint: string,
+    timeout = 15_000,
+  ): Promise<void> {
+    await this.page.waitForFunction(
+      ({ previousSnapshot, virtualizedCard, hydratedCard, jobIdAttribute }) => {
+        // Collect the currently rendered hydrated job IDs.
+        const jobIds = Array.from(
+          document.querySelectorAll(`${virtualizedCard} ${hydratedCard}`),
+        )
+          .map((card) => card.getAttribute(jobIdAttribute))
+          .filter((jobId): jobId is string => Boolean(jobId));
+
+        // Wait until at least one hydrated job exists and the rendered
+        // job snapshot differs from the previous page.
+        return jobIds.length > 0 && jobIds.join("|") !== previousSnapshot;
+      },
+      {
+        // Serialized and passed into the browser context because the callback
+        // cannot directly access Node.js variables.
+        previousSnapshot: previousFingerprint,
+        virtualizedCard: searchPageLocatorConfig.virtualizedCard,
+        hydratedCard: searchPageLocatorConfig.hydratedCard,
+        jobIdAttribute: searchPageLocatorConfig.jobIdAttribute,
+      },
+      { timeout },
+    );
+  }
+
+  /**
+   * Reloads the current LinkedIn search URL.
+   * @param timeout - Maximum reload time in milliseconds.
+   */
+  async reloadCurrentPage(timeout = 30_000): Promise<void> {
+    await this.page.reload({
+      waitUntil: domEventConfig.EVENT_DOMCONTENTLOADED,
+      timeout,
+    });
+  }
+
+  /**
+   * Current page url
+   */
+  currentUrl(): string {
+    return this.page.url();
   }
 
   async virtualizedJobCardCount(): Promise<number> {

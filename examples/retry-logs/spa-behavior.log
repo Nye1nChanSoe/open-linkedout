@@ -137,3 +137,11 @@ Extracted : Senior Software Engineer, Full Stack | (4411351890)
 Already collected job: 4411351890
 Extracted : Full Stack Developer (Java Script/Java Spring Boot) | (4438218030)
 Already collected job: 4438218030
+
+# Need to trigger page refresh
+[SCRAPE_TIMEOUT] Retrying navigate to next page on page 2 in 6s (retry 1, elapsed 16s).
+[SCRAPE_TIMEOUT] Retrying navigate to next page on page 2 in 11s (retry 2, elapsed 36s).
+[SCRAPE_TIMEOUT] Retrying navigate to next page on page 2 in 19s (retry 3, elapsed 2m).
+[SCRAPE_TIMEOUT] Retrying navigate to next page on page 2 in 48s (retry 4, elapsed 2m).
+[SCRAPE_TIMEOUT] Retrying navigate to next page on page 2 in 2m (retry 5, elapsed 3m).
+[SCRAPE_TIMEOUT] Retrying navigate to next page on page 2 in 3m (retry 6, elapsed 5m).

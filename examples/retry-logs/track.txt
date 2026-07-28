@@ -1,0 +1,10 @@
+1. Current page N persists successfully.
+2. Next is clicked, targeting page N + 1.
+3. LinkedIn immediately updates SPA history/URL to the new `start=...` offset.
+4. Wi‑Fi is unavailable, so LinkedIn cannot fetch the next page’s jobs.
+5. The old page-N job-card DOM remains visible.
+6. Current paginator checks pass because visible virtualized/hydrated cards already exist.
+7. The orchestrator treats navigation as complete and starts scraping what it believes is page N + 1.
+8. Scroller actually reads the stale page-N cards.
+9. Global dedupe skips those already-collected job IDs, so 0 jobs/discoveries persist for the claimed next page.
+10. The next navigation uses the reported page N + 1 state and clicks Next again, advancing the URL further while card data remains stale.

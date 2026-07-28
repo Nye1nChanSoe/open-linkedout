@@ -74,11 +74,12 @@ export class ScrapeAndPersistOrchestratorService {
         () => this.paginator.hasNextPage(),
       );
 
-      if (!hasNextPage) {
-        break;
-      }
+      if (!hasNextPage) break;
 
-      await this.paginator.goToNextPage();
+      await this.retryPolicy.execute(
+        { operationName: "navigate to next page", pageNumber },
+        () => this.paginator.goToNextPage(),
+      );
     }
 
     return {

@@ -1,0 +1,25 @@
+[HISTORY pushState] /jobs/search/?currentJobId=4404264157&keywords=software%20engineer&location=bangkok&start=50
+[NAVIGATION] https://www.linkedin.com/jobs/search/?currentJobId=4404264157&keywords=software%20engineer&location=bangkok&start=50
+[SCRAPE_TIMEOUT] Retrying navigate to next page on page 2 in 5s (retry 1, elapsed 16s).
+[NETWORK_ERROR] Retrying navigate to next page on page 2 in 12s (retry 2, elapsed 21s).
+[NAVIGATION] chrome-error://chromewebdata/
+[DOM CONTENT LOADED] chrome-error://chromewebdata/
+[LOAD] chrome-error://chromewebdata/
+/Users/nyeinchan/Desktop/LinkedOut/src/utils/utils.ts:154
+  return new ScrapingError(
+         ^
+
+ScrapingError: Failed while scraping the LinkedIn results page.
+    at toScrapingError (/Users/nyeinchan/Desktop/LinkedOut/src/utils/utils.ts:154:10)
+    at Paginator.goToNextPage (/Users/nyeinchan/Desktop/LinkedOut/src/pages/search/paginator.ts:101:13)
+    at async RetryPolicy.execute (/Users/nyeinchan/Desktop/LinkedOut/src/app/retry/retry-policy.ts:38:16)
+    at async ScrapeAndPersistOrchestratorService.execute (/Users/nyeinchan/Desktop/LinkedOut/src/app/services/scrape-and-persist-orchestrator.service.ts:79:7)
+    at async <anonymous> (/Users/nyeinchan/Desktop/LinkedOut/src/scraper/main.ts:83:1) {
+  code: 'BROWSER_ERROR',
+  retryable: false,
+  cause: Error: LinkedIn moved to an unexpected pagination offset: 0.
+      at Paginator.goToNextPage (/Users/nyeinchan/Desktop/LinkedOut/src/pages/search/paginator.ts:97:13)
+      at async RetryPolicy.execute (/Users/nyeinchan/Desktop/LinkedOut/src/app/retry/retry-policy.ts:38:16)
+      at async ScrapeAndPersistOrchestratorService.execute (/Users/nyeinchan/Desktop/LinkedOut/src/app/services/scrape-and-persist-orchestrator.service.ts:79:7)
+      at async <anonymous> (/Users/nyeinchan/Desktop/LinkedOut/src/scraper/main.ts:83:1)
+}

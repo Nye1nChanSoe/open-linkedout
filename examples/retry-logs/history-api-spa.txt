@@ -1,9 +1,0 @@
-1. Page 1 persists successfully.
-2. Next is clicked.
-3. LinkedIn immediately updates URL: start=25.
-4. Wi‑Fi is off, so the SPA request for page-2 jobs cannot finish.
-5. Old page-1 job-card DOM remains visible.
-6. Current paginator checks pass because old cards are still visible.
-7. Scraper runs again against stale cards.
-8. Global dedupe skips them, so 0 jobs persist.
-9. Next is clicked again, URL becomes start=50 / start=75, while content is still stale.

@@ -17,6 +17,9 @@ const config = {
   /** Time allowed for a delayed LinkedIn authentication redirect. */
   AUTH_REDIRECT_GRACE_MS: 5_000,
 
+  /** Number of results shown on each LinkedIn search page. */
+  LINKEDIN_RESULTS_PER_PAGE: 25,
+
   /**
    * LinkedIn job-discovery pages.
    *
