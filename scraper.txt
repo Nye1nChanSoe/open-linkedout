@@ -48,3 +48,21 @@ scrollIntoViewIfNeeded()
     - if the element is fully visible do nothing
     - scroll just enough to make it visible
     - it scrolls the minimum amount necessary to enter into viewport
+
+
+Now that scraper is moved to orchestrator service
+    who is responsbile for scrolling + persisting + pagination + recovery page by page
+
+Orchestator => knows how to perform one business workflow
+            => DOES NOT concern whether another orchestrator is running or not
+            => DOES NOT concern how to resume after restarting the application
+
+Scheduler => knows which durable tasks should execute and when
+          => CONCERNS is what work should run next with what state.
+
+
+Scheduler 
+    -> Worker 
+    -> ScrapeAndPersistOrchestratorService 
+    -> Scroller + Paginator + Persistence + Retry
+

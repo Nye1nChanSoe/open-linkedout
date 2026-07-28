@@ -1,0 +1,16 @@
+Scheduler
+    ↓
+Worker abstraction
+    ↓
+DiscoveryRunWorker
+    ↓
+ScrapeAndPersistOrchestratorService
+    ↓
+Pages / Scroller / Paginator / Persistence services
+    ↓
+Repositories
+    ↓
+SQLite  
+
+
+The scheduler owns durable task lifecycle and execution timing.

@@ -1,5 +1,4 @@
-import pc from "picocolors";
-import { chromium, type Page } from "playwright";
+import { chromium } from "playwright";
 import scraperConfig from "@/config/scraper.config.js";
 import domEventConfig from "@/config/dom-event.config.js";
 import {
