@@ -16,6 +16,8 @@ import { JobDiscoveryRepository } from "@database/repositories/job-discovery.rep
 import { ScrapeAndPersistOrchestratorService } from "@/app/services/scrape-and-persist-orchestrator.service.js";
 import { assertAuthenticated } from "@/scraper/authentication.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
+import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
+import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";
 
 // TODO: THIS IS TEMPORARY SEARCH KEYWORDS
 const SEARCH_KEYWORD = "software engineer";
@@ -71,12 +73,16 @@ const persistJobService = new PersistDiscoveredJobsService(
   jobDiscoveryRepository,
 );
 
+const schedulerTaskRepository = new SchedulerTaskRepository(conn);
+const schedulerTaskService = new SchedulerTaskService(schedulerTaskRepository);
+
 // orchestrator
 const orchestor = new ScrapeAndPersistOrchestratorService(
   scroller,
   paginator,
   persistJobService,
   retryPolicy,
+  schedulerTaskService,
 );
 
 await orchestor.execute({

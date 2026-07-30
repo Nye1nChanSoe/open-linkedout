@@ -26,7 +26,7 @@ export type ApplicationErrorCodeType =
 // NETWORK_ERROR
 // SCRAPE_TIMEOUT
 // temporary BROWSER_ERROR
-// DATABASE_BUSY
+// DATABASE_BUSY            caused by locking
 
 // Non-retryable
 // -------------

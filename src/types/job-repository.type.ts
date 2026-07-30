@@ -1,8 +1,11 @@
+/** Internal primary key for one canonical job record. */
+export type CanonicalJobIdType = number;
+
 /**
  * One real LinkedIn job record which is also canonical job for `job-discovery` observations
  */
 export type DBJobRowType = {
-  id: number;
+  id: CanonicalJobIdType;
   linkedin_job_id: string;
   title: string;
   company: string | null;

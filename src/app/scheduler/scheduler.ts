@@ -2,20 +2,16 @@ import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.r
 import { ApplicationError } from "@/app/errors/application-error.js";
 import { calculateExponentialBackoffDelay } from "@/app/retry/exponential-backoff.js";
 import retryConfig from "@/config/retry.config.js";
-import type { SchedulerTaskWorkerType } from "@/contracts/scheduler-task-worker.contract.js";
+import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.js";
 import type { DBSchedulerTaskRowType } from "@/types/scheduler-task.type.js";
 
 /**
- * Claims durable tasks and dispatches them to their matching workers.
+ * Claims durable tasks and dispatches them to their matching task executors.
  */
 export class Scheduler {
-  /**
-   * @param schedulerTaskRepository - Stores task lifecycle state.
-   * @param workers - Workers available for supported scheduler task types.
-   */
   constructor(
     private readonly schedulerTaskRepository: SchedulerTaskRepository,
-    private readonly workers: SchedulerTaskWorkerType[],
+    private readonly taskExecutors: SchedulerTaskContract[],
   ) {}
 
   /**
@@ -36,8 +32,8 @@ export class Scheduler {
     if (!task) return false;
 
     try {
-      const worker = this.findWorker(task);
-      await worker.execute(task);
+      const taskExecutor = this.findTaskExecutor(task);
+      await taskExecutor.execute(task);
       this.schedulerTaskRepository.markCompleted(task.id);
     } catch (error) {
       this.handleTaskError(task, error);
@@ -47,25 +43,27 @@ export class Scheduler {
   }
 
   /**
-   * Finds the worker responsible for a claimed task.
+   * Finds the executor responsible for a claimed task.
    * @param task - Claimed durable task.
-   * @returns Matching task worker.
+   * @returns Matching task executor.
    */
-  private findWorker(task: DBSchedulerTaskRowType): SchedulerTaskWorkerType {
-    const worker = this.workers.find(
+  private findTaskExecutor(
+    task: DBSchedulerTaskRowType,
+  ): SchedulerTaskContract {
+    const taskExecutor = this.taskExecutors.find(
       (candidate) => candidate.taskType === task.task_type,
     );
 
-    if (!worker)
-      throw new Error(`No scheduler worker for task type "${task.task_type}".`);
+    if (!taskExecutor)
+      throw new Error(`No scheduler task executor for "${task.task_type}".`);
 
-    return worker;
+    return taskExecutor;
   }
 
   /**
    * Records a retryable task failure or final task failure.
-   * @param task - Claimed task whose worker failed.
-   * @param error - Worker failure.
+   * @param task - Claimed task whose executor failed.
+   * @param error - Task execution failure.
    */
   private handleTaskError(task: DBSchedulerTaskRowType, error: unknown): void {
     const errorMessage = error instanceof Error ? error.message : String(error);

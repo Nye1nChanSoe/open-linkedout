@@ -1,10 +1,12 @@
+import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
+
 /**
  * Durable lifecycle states for a scheduler task.
  */
 export type SchedulerTaskStatusType =
   /** Waiting for the scheduler to claim it. */
   | "pending"
-  /** Claimed and currently being executed by a worker. */
+  /** Claimed and currently being executed by a scheduler task. */
   | "running"
   /** Waiting until its next eligible retry time. */
   | "retry_wait"
@@ -15,8 +17,7 @@ export type SchedulerTaskStatusType =
   /** Stopped intentionally and never run automatically. */
   | "cancelled";
 
-// currently support only one scheduler task type
-export type SchedulerTaskType = "discovery_run";
+export type SchedulerTaskType = "discovery_run" | "job_detail_scrape";
 
 /** orchestrator.execute input requirements */
 export type DiscoveryRunTaskPayloadType = {
@@ -25,14 +26,15 @@ export type DiscoveryRunTaskPayloadType = {
   maxPages: number;
 };
 
-/** Serialized task-specific payload stored by the scheduler. */
-export type SchedulerTaskPayloadType = DiscoveryRunTaskPayloadType;
+/** Canonical job whose LinkedIn detail page should be scraped. */
+export type JobDetailScrapeTaskPayloadType = {
+  job_id: CanonicalJobIdType;
+};
 
-/** Input used to create one pending discovery-run task. */
 export type CreateDiscoveryRunTaskInputType = DiscoveryRunTaskPayloadType;
 
 export type DBSchedulerTaskRowType = {
-  id: string;
+  id: number;
   task_type: SchedulerTaskType;
   payload_json: string;
   status: SchedulerTaskStatusType;
@@ -46,10 +48,10 @@ export type DBSchedulerTaskRowType = {
 };
 
 export type FindSchedulerTaskByIdParamsType = {
-  id: string;
+  id: number;
 };
 
-export type InsertSchedulerTaskParamsType = DBSchedulerTaskRowType;
+export type InsertSchedulerTaskParamsType = Omit<DBSchedulerTaskRowType, "id">;
 
 export type ClaimNextEligibleTaskParamsType = {
   pending_status: SchedulerTaskStatusType;
@@ -65,14 +67,14 @@ export type RecoverRunningTasksParamsType = {
 };
 
 export type MarkSchedulerTaskCompletedParamsType = {
-  id: string;
+  id: number;
   completed_status: SchedulerTaskStatusType;
   completed_at: string;
   updated_at: string;
 };
 
 export type MarkSchedulerTaskRetryWaitingParamsType = {
-  id: string;
+  id: number;
   retry_wait_status: SchedulerTaskStatusType;
   next_eligible_at: string;
   last_error: string;
@@ -80,7 +82,7 @@ export type MarkSchedulerTaskRetryWaitingParamsType = {
 };
 
 export type MarkSchedulerTaskFailedParamsType = {
-  id: string;
+  id: number;
   failed_status: SchedulerTaskStatusType;
   last_error: string;
   completed_at: string;

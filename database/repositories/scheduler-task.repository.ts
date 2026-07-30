@@ -1,21 +1,20 @@
-import { randomUUID } from "node:crypto";
 import type BetterSqlite3 from "better-sqlite3";
 
-import { SCHEDULER_TASK_STATUS } from "@/constants/scheduler-task-status.constant.js";
 import type { DatabaseConnectionType } from "@/types/database.type.js";
+import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
 import type {
   ClaimNextEligibleTaskParamsType,
   CreateDiscoveryRunTaskInputType,
   DBSchedulerTaskRowType,
   FindSchedulerTaskByIdParamsType,
   InsertSchedulerTaskParamsType,
+  JobDetailScrapeTaskPayloadType,
   MarkSchedulerTaskCompletedParamsType,
   MarkSchedulerTaskFailedParamsType,
   MarkSchedulerTaskRetryWaitingParamsType,
   RecoverRunningTasksParamsType,
 } from "@/types/scheduler-task.type.js";
 
-/** Owns database operations for durable scheduler tasks. */
 export class SchedulerTaskRepository {
   private readonly findByIdStatement: BetterSqlite3.Statement<
     [FindSchedulerTaskByIdParamsType],
@@ -47,6 +46,10 @@ export class SchedulerTaskRepository {
     [MarkSchedulerTaskFailedParamsType]
   >;
 
+  private readonly createJobDetailScrapeTasksTransaction: (
+    jobIds: CanonicalJobIdType[],
+  ) => DBSchedulerTaskRowType[];
+
   constructor(private readonly database: DatabaseConnectionType) {
     this.findByIdStatement = database.prepare<
       FindSchedulerTaskByIdParamsType,
@@ -62,7 +65,6 @@ export class SchedulerTaskRepository {
     this.insertTaskStatement = database.prepare<InsertSchedulerTaskParamsType>(
       `
       INSERT INTO scheduler_tasks (
-        id,
         task_type,
         payload_json,
         status,
@@ -75,7 +77,6 @@ export class SchedulerTaskRepository {
         updated_at
       )
       VALUES (
-        @id,
         @task_type,
         @payload_json,
         @status,
@@ -167,6 +168,11 @@ export class SchedulerTaskRepository {
       WHERE id = @id;
     `,
       );
+
+    this.createJobDetailScrapeTasksTransaction = database.transaction(
+      (jobIds: CanonicalJobIdType[]) =>
+        jobIds.map((jobId) => this.createJobDetailScrapeTask({ job_id: jobId })),
+    );
   }
 
   /**
@@ -174,7 +180,7 @@ export class SchedulerTaskRepository {
    * @param id - Durable scheduler task identifier.
    * @returns Matching task, if present.
    */
-  findById(id: string): DBSchedulerTaskRowType | undefined {
+  findById(id: number): DBSchedulerTaskRowType | undefined {
     return this.findByIdStatement.get({ id });
   }
 
@@ -188,10 +194,9 @@ export class SchedulerTaskRepository {
   ): DBSchedulerTaskRowType {
     const timestamp = new Date().toISOString();
     const task: InsertSchedulerTaskParamsType = {
-      id: randomUUID(),
       task_type: "discovery_run",
       payload_json: JSON.stringify(input),
-      status: SCHEDULER_TASK_STATUS.PENDING,
+      status: "pending",
       attempt_count: 0,
       next_eligible_at: null,
       last_error: null,
@@ -201,9 +206,47 @@ export class SchedulerTaskRepository {
       updated_at: timestamp,
     };
 
-    this.insertTaskStatement.run(task);
+    const result = this.insertTaskStatement.run(task);
 
-    return this.findById(task.id)!;
+    return this.findById(Number(result.lastInsertRowid))!;
+  }
+
+  /**
+   * Creates one pending job-detail scrape task.
+   * @param input - Canonical job to scrape from LinkedIn's detail page.
+   * @returns Newly created durable task.
+   */
+  createJobDetailScrapeTask(
+    input: JobDetailScrapeTaskPayloadType,
+  ): DBSchedulerTaskRowType {
+    const timestamp = new Date().toISOString();
+    const task: InsertSchedulerTaskParamsType = {
+      task_type: "job_detail_scrape",
+      payload_json: JSON.stringify(input),
+      status: "pending",
+      attempt_count: 0,
+      next_eligible_at: null,
+      last_error: null,
+      created_at: timestamp,
+      started_at: null,
+      completed_at: null,
+      updated_at: timestamp,
+    };
+
+    const result = this.insertTaskStatement.run(task);
+
+    return this.findById(Number(result.lastInsertRowid))!;
+  }
+
+  /**
+   * Creates pending job-detail scrape tasks in one transaction.
+   * @param jobIds - Canonical jobs to scrape from LinkedIn detail pages.
+   * @returns Newly created durable tasks in the supplied job order.
+   */
+  createJobDetailScrapeTasks(
+    jobIds: CanonicalJobIdType[],
+  ): DBSchedulerTaskRowType[] {
+    return this.createJobDetailScrapeTasksTransaction(jobIds);
   }
 
   /**
@@ -212,9 +255,9 @@ export class SchedulerTaskRepository {
    */
   claimNextEligibleTask(): DBSchedulerTaskRowType | undefined {
     return this.claimNextEligibleTaskStatement.get({
-      pending_status: SCHEDULER_TASK_STATUS.PENDING,
-      retry_wait_status: SCHEDULER_TASK_STATUS.RETRY_WAIT,
-      running_status: SCHEDULER_TASK_STATUS.RUNNING,
+      pending_status: "pending",
+      retry_wait_status: "retry_wait",
+      running_status: "running",
       timestamp: new Date().toISOString(),
     });
   }
@@ -225,8 +268,8 @@ export class SchedulerTaskRepository {
    */
   recoverRunningTasks(): number {
     const result = this.recoverRunningTasksStatement.run({
-      running_status: SCHEDULER_TASK_STATUS.RUNNING,
-      pending_status: SCHEDULER_TASK_STATUS.PENDING,
+      running_status: "running",
+      pending_status: "pending",
       updated_at: new Date().toISOString(),
     });
 
@@ -237,12 +280,12 @@ export class SchedulerTaskRepository {
    * Marks a task as completed.
    * @param id - Durable scheduler task identifier.
    */
-  markCompleted(id: string): void {
+  markCompleted(id: number): void {
     const timestamp = new Date().toISOString();
 
     this.markCompletedStatement.run({
       id,
-      completed_status: SCHEDULER_TASK_STATUS.COMPLETED,
+      completed_status: "completed",
       completed_at: timestamp,
       updated_at: timestamp,
     });
@@ -255,13 +298,13 @@ export class SchedulerTaskRepository {
    * @param lastError - Failure message from the latest attempt.
    */
   markRetryWaiting(
-    id: string,
+    id: number,
     nextEligibleAt: string,
     lastError: string,
   ): void {
     this.markRetryWaitingStatement.run({
       id,
-      retry_wait_status: SCHEDULER_TASK_STATUS.RETRY_WAIT,
+      retry_wait_status: "retry_wait",
       next_eligible_at: nextEligibleAt,
       last_error: lastError,
       updated_at: new Date().toISOString(),
@@ -273,12 +316,12 @@ export class SchedulerTaskRepository {
    * @param id - Durable scheduler task identifier.
    * @param lastError - Failure message from the final attempt.
    */
-  markFailed(id: string, lastError: string): void {
+  markFailed(id: number, lastError: string): void {
     const timestamp = new Date().toISOString();
 
     this.markFailedStatement.run({
       id,
-      failed_status: SCHEDULER_TASK_STATUS.FAILED,
+      failed_status: "failed",
       last_error: lastError,
       completed_at: timestamp,
       updated_at: timestamp,

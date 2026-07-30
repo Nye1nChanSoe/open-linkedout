@@ -4,6 +4,7 @@ import pc from "picocolors";
 import { PersistenceError } from "@/app/errors/persistence-error.js";
 import { isDatabaseBusyError } from "@/utils/utils.js";
 import type { DatabaseConnectionType } from "@/types/database.type.js";
+import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
 import type {
   PersistDiscoveredJobsInputType,
   PersistDiscoveredJobsResultType,
@@ -17,11 +18,6 @@ export class PersistDiscoveredJobsService {
     input: PersistDiscoveredJobsInputType,
   ) => PersistDiscoveredJobsResultType;
 
-  /**
-   * @param database - Open SQLite database connection.
-   * @param jobRepository - Repository for canonical jobs.
-   * @param jobDiscoveryRepository - Repository for discovery observations.
-   */
   constructor(
     database: DatabaseConnectionType,
     private readonly jobRepository: JobRepository,
@@ -80,6 +76,7 @@ export class PersistDiscoveredJobsService {
     let updatedJobCount = 0;
     let insertedDiscoveryCount = 0;
     let updatedDiscoveryCount = 0;
+    const canonicalJobIds: CanonicalJobIdType[] = [];
 
     for (const [index, scrapedJob] of input.extractedJobs.entries()) {
       const jobResult = this.jobRepository.upsertJob({
@@ -104,6 +101,8 @@ export class PersistDiscoveredJobsService {
         updatedJobCount++;
       }
 
+      canonicalJobIds.push(jobResult.job.id);
+
       const discoveryResult = this.jobDiscoveryRepository.upsertDiscovery({
         jobId: jobResult.job.id,
         keyword: input.keyword,
@@ -127,6 +126,7 @@ export class PersistDiscoveredJobsService {
       updatedJobCount,
       insertedDiscoveryCount,
       updatedDiscoveryCount,
+      canonicalJobIds,
     };
   }
 }

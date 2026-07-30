@@ -9,6 +9,6 @@ export type ScrapeAndPersistOrchestratorInputType = {
 
 /** Aggregate counts produced by a scrape-and-persist run. */
 export type ScrapeAndPersistOrchestratorResultType =
-  PersistDiscoveredJobsResultType & {
+  Omit<PersistDiscoveredJobsResultType, "canonicalJobIds"> & {
   scrapedPageCount: number;
 };

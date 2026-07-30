@@ -9,12 +9,9 @@ import type {
 } from "@/types/persist-job-detail.type.js";
 
 /**
- * Persists the latest scraped detail data for one canonical job.
+ * Persists detailed data for ONE canonical job
  */
 export class PersistJobDetailService {
-  /**
-   * @param jobDetailRepository - Repository for canonical job detail records.
-   */
   constructor(private readonly jobDetailRepository: JobDetailRepository) {}
 
   /**

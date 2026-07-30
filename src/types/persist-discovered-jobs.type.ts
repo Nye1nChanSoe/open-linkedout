@@ -1,4 +1,5 @@
 import type { ScrapedJobType } from "@/types/scraped-job.type.js";
+import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
 
 /** Scraped jobs and search context from one LinkedIn results page. */
 export type PersistDiscoveredJobsInputType = {
@@ -16,4 +17,5 @@ export type PersistDiscoveredJobsResultType = {
   updatedJobCount: number;
   insertedDiscoveryCount: number;
   updatedDiscoveryCount: number;
+  canonicalJobIds: CanonicalJobIdType[];
 };

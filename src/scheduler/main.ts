@@ -3,13 +3,16 @@ import pc from "picocolors";
 
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { Scheduler } from "@/app/scheduler/scheduler.js";
-import { DiscoveryRunWorker } from "@/app/scheduler/workers/discovery-run.worker.js";
-import { CreateDiscoveryRunTaskService } from "@/app/services/create-discovery-run-task.service.js";
+import { DiscoveryRunTask } from "@/app/scheduler/tasks/discovery-run.task.js";
+import { JobDetailScrapeTask } from "@/app/scheduler/tasks/job-detail-scrape.task.js";
+import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";
 import { PersistDiscoveredJobsService } from "@/app/services/persist-discovered-jobs.service.js";
+import { PersistJobDetailService } from "@/app/services/persist-job-detail.service.js";
 import { ScrapeAndPersistOrchestratorService } from "@/app/services/scrape-and-persist-orchestrator.service.js";
 import scraperConfig from "@/config/scraper.config.js";
 import { createDatabaseConnection } from "@database/connection.js";
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
+import { JobDetailRepository } from "@database/repositories/job-detail.repository.js";
 import { JobRepository } from "@database/repositories/job.repository.js";
 import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
 import { Paginator } from "@/pages/search/paginator.js";
@@ -17,7 +20,7 @@ import { JobsSearchPage } from "@/pages/search/job-search-page.js";
 import { Scroller } from "@/pages/search/scroller.js";
 import { debugDOMLogs, sleep } from "@/utils/utils.js";
 
-const database = createDatabaseConnection();
+const conn = createDatabaseConnection();
 const context = await chromium.launchPersistentContext(
   scraperConfig.PERSISTENT_BROWSER_DATA_PATH,
   {
@@ -32,25 +35,29 @@ try {
   const retryPolicy = new RetryPolicy();
   const jobSearchPage = new JobsSearchPage(page);
 
-  const schedulerTaskRepository = new SchedulerTaskRepository(database);
+  const schedulerTaskRepository = new SchedulerTaskRepository(conn);
 
   // TODO: Remove after task creation is handled by a command or dashboard.
-  const createOneTask = new CreateDiscoveryRunTaskService(
+  const schedulerTaskService = new SchedulerTaskService(
     schedulerTaskRepository,
   );
-  createOneTask.execute({
+  schedulerTaskService.createDiscoveryRunTask({
     keyword: "software engineer",
     searchLocation: "thailand",
-    maxPages: 10,
+    maxPages: 5,
   });
 
-  const jobRepository = new JobRepository(database);
-  const jobDiscoveryRepository = new JobDiscoveryRepository(database);
+  const jobRepository = new JobRepository(conn);
+  const jobDiscoveryRepository = new JobDiscoveryRepository(conn);
 
   const persistenceService = new PersistDiscoveredJobsService(
-    database,
+    conn,
     jobRepository,
     jobDiscoveryRepository,
+  );
+
+  const persistJobDetailService = new PersistJobDetailService(
+    new JobDetailRepository(conn),
   );
 
   const orchestrator = new ScrapeAndPersistOrchestratorService(
@@ -58,10 +65,26 @@ try {
     new Paginator(jobSearchPage),
     persistenceService,
     retryPolicy,
+    schedulerTaskService,
   );
 
-  const worker = new DiscoveryRunWorker(orchestrator, page, retryPolicy);
-  const scheduler = new Scheduler(schedulerTaskRepository, [worker]);
+  const discoveryRunTask = new DiscoveryRunTask(
+    orchestrator,
+    page,
+    retryPolicy,
+  );
+
+  const jobDetailScrapeTask = new JobDetailScrapeTask(
+    jobRepository,
+    persistJobDetailService,
+    page,
+    retryPolicy,
+  );
+
+  const scheduler = new Scheduler(schedulerTaskRepository, [
+    discoveryRunTask,
+    jobDetailScrapeTask,
+  ]);
 
   await debugDOMLogs(page);
   await page.bringToFront();
@@ -77,5 +100,5 @@ try {
   await sleep(60_000);
 } finally {
   await context.close();
-  database.close();
+  conn.close();
 }

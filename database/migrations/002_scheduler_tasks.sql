@@ -1,7 +1,7 @@
 -- Durable task lifecycle for the local scheduler.
 
 CREATE TABLE scheduler_tasks (
-    id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     /**
      * Task Type: discovery_run

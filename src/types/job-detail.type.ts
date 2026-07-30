@@ -1,3 +1,5 @@
+import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
+
 export type JobApplicationStatusType =
   | "unknown" // detail page was fetched, but application availability was unclear
   | "open" // detail page indicates an application can still be started
@@ -6,7 +8,7 @@ export type JobApplicationStatusType =
 
 export type DBJobDetailRowType = {
   // not LinkedIn job identifier
-  job_id: number;
+  job_id: CanonicalJobIdType;
   header_text: string;
   description_text: string;
   source_url: string;
@@ -20,13 +22,13 @@ export type DBJobDetailRowType = {
 };
 
 export type FindJobDetailByJobIdParamsType = {
-  job_id: number;
+  job_id: CanonicalJobIdType;
 };
 
 export type InsertJobDetailParamsType = DBJobDetailRowType;
 
 export type UpdateJobDetailParamsType = {
-  job_id: number;
+  job_id: CanonicalJobIdType;
   header_text: string;
   description_text: string;
   source_url: string;
@@ -40,7 +42,7 @@ export type UpdateJobDetailParamsType = {
 
 // Input type for insert or upsert
 export type JobDetailUpsertInputType = {
-  jobId: number;
+  jobId: CanonicalJobIdType;
   headerText: string;
   descriptionText: string;
   sourceUrl: string;

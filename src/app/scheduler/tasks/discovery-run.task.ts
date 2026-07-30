@@ -2,7 +2,7 @@ import { ScrapeAndPersistOrchestratorService } from "@/app/services/scrape-and-p
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import scraperConfig from "@/config/scraper.config.js";
 import domEventConfig from "@/config/dom-event.config.js";
-import type { SchedulerTaskWorkerType } from "@/contracts/scheduler-task-worker.contract.js";
+import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.js";
 import { assertAuthenticated } from "@/scraper/authentication.js";
 import type {
   DBSchedulerTaskRowType,
@@ -14,14 +14,9 @@ import type { Page } from "playwright";
 /**
  * Executes complete LinkedIn discovery runs scheduled by the application.
  */
-export class DiscoveryRunWorker implements SchedulerTaskWorkerType {
+export class DiscoveryRunTask implements SchedulerTaskContract {
   readonly taskType = "discovery_run" as const;
 
-  /**
-   * @param scrapeAndPersistOrchestratorService - Runs the discovery workflow.
-   * @param page - Active browser page used for the discovery run.
-   * @param retryPolicy - Retries temporary navigation failures.
-   */
   constructor(
     private readonly scrapeAndPersistOrchestratorService: ScrapeAndPersistOrchestratorService,
     private readonly page: Page,
