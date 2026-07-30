@@ -123,6 +123,20 @@ export function formatDuration(durationMs: number): string {
 }
 
 /**
+ * Checks whether SQLite rejected an operation because the database is busy.
+ * @param error - Original error thrown by better-sqlite3.
+ * @returns Whether the error is SQLite's busy error.
+ */
+export function isDatabaseBusyError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "SQLITE_BUSY"
+  );
+}
+
+/**
  * Converts low-level scraping failures into a classified application error.
  * @param error - Original Playwright or extraction error.
  */

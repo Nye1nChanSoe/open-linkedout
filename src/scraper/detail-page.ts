@@ -1,6 +1,5 @@
 import { chromium } from "playwright";
 import pc from "picocolors";
-import detailPageLocatorConfig from "@/config/detail-page-locators.config.js";
 import scraperConfig from "@/config/scraper.config.js";
 import domEventConfig from "@/config/dom-event.config.js";
 import {
@@ -9,9 +8,15 @@ import {
   toScrapingError,
 } from "@/utils/utils.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
+import { PersistJobDetailService } from "@/app/services/persist-job-detail.service.js";
+import { createDatabaseConnection } from "@database/connection.js";
+import { JobDetailRepository } from "@database/repositories/job-detail.repository.js";
+import { JobRepository } from "@database/repositories/job.repository.js";
+import { extractJobDetailData } from "@/pages/view/extractor.js";
+import { JobDetailPage } from "@/pages/view/job-detail-page.js";
 import { assertAuthenticated } from "./authentication.js";
 
-const JOB_ID = "4401409527";
+const JOB_ID = "4441184555";
 
 const context = await chromium.launchPersistentContext(
   scraperConfig.PERSISTENT_BROWSER_DATA_PATH,
@@ -47,39 +52,48 @@ await retryPolicy.execute(
 
 await assertAuthenticated(page);
 
-const jobHeader = page
-  .locator(detailPageLocatorConfig.jobHeaderCandidate)
-  .filter({ has: page.locator(detailPageLocatorConfig.company) })
-  .first()
-  .filter({ hasText: /\S/ });
+const jobDetailPage = new JobDetailPage(page);
+await jobDetailPage.waitForContent();
+await jobDetailPage.openMatchDetails();
 
-await jobHeader.waitFor({ state: "visible" });
-console.info(pc.cyan("Job header:"));
-console.info(pc.gray(await jobHeader.innerText()));
+const jobDetail = await extractJobDetailData(jobDetailPage);
+const {
+  headerText,
+  descriptionText,
+  linkedinShowMatchDetailsAiText,
+  sourceUrl,
+} = jobDetail;
 
-const jobDetails = page
-  .locator(detailPageLocatorConfig.description)
-  .first()
-  .filter({ hasText: /\S/ });
-
-await jobDetails.waitFor({ state: "visible" });
-console.info(pc.cyan("Job details:"));
-console.info(pc.gray(await jobDetails.innerText()));
-
-const showMatchDetails = page.locator(
-  detailPageLocatorConfig.matchDetailsTrigger,
+console.info(
+  pc.green("Extracted detail"),
+  pc.dim(":"),
+  pc.blue(sourceUrl),
+  pc.dim("|"),
+  pc.cyan(`${headerText.length} header chars`),
+  pc.dim("|"),
+  pc.cyan(`${descriptionText.length} description chars`),
+  pc.dim("|"),
+  linkedinShowMatchDetailsAiText
+    ? pc.cyan(`${linkedinShowMatchDetailsAiText.length} AI match chars`)
+    : pc.yellow("no AI match"),
 );
 
-await showMatchDetails.waitFor({ state: "visible" });
-await showMatchDetails.click();
+const conn = createDatabaseConnection();
+const jobRepository = new JobRepository(conn);
+const canonicalJob = jobRepository.findByLinkedInJobId(JOB_ID);
 
-const matchDetails = page
-  .locator(detailPageLocatorConfig.matchDetailsText)
-  .first()
-  .filter({ hasText: /\S/ });
+if (!canonicalJob) {
+  throw new Error(
+    `Cannot persist details: LinkedIn job ${JOB_ID} was not discovered first.`,
+  );
+}
 
-await matchDetails.waitFor({ state: "visible" });
-console.info(pc.cyan("Match details:"));
-console.info(pc.gray(await matchDetails.innerText()));
+const persistJobDetailService = new PersistJobDetailService(
+  new JobDetailRepository(conn),
+);
+persistJobDetailService.execute({
+  jobId: canonicalJob.id,
+  extractedJobDetail: jobDetail,
+});
 
 await new Promise(() => {});

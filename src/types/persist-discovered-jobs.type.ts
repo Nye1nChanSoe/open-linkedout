@@ -5,7 +5,7 @@ export type PersistDiscoveredJobsInputType = {
   keyword: string;
   searchLocation: string;
   pageNumber: number;
-  jobs: ScrapedJobType[];
+  extractedJobs: ScrapedJobType[];
 };
 
 /** Counts produced after saving one LinkedIn results page. */

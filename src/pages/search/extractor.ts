@@ -2,6 +2,14 @@ import type { ScrapedJobType } from "@/types/scraped-job.type.js";
 import type { Locator } from "playwright";
 
 import searchPageLocatorConfig from "@/config/search-page-locators.config.js";
+import {
+  includesText,
+  optionalAttribute,
+  optionalText,
+  optionalTexts,
+  requiredAttribute,
+  requiredText,
+} from "@/pages/extractor.utils.js";
 
 /**
  * Extracts structured data from one hydrated LinkedIn job card.
@@ -59,59 +67,4 @@ export async function extractJobCardData(
     isEarlyApplicant: includesText(footerText, "early applicant"),
     isEasyApply: includesText(footerText, "Easy Apply"),
   };
-}
-
-async function requiredText(
-  locator: Locator,
-  fieldName: string,
-): Promise<string> {
-  const value = await optionalText(locator);
-
-  if (!value)
-    throw new Error(`Unable to extract required field: ${fieldName}.`);
-
-  return value;
-}
-
-async function optionalText(locator: Locator): Promise<string | undefined> {
-  if ((await locator.count()) === 0) {
-    return undefined;
-  }
-
-  return (await locator.innerText()).trim() || undefined;
-}
-
-async function requiredAttribute(
-  locator: Locator,
-  attributeName: string,
-  fieldName: string,
-): Promise<string> {
-  const value = await optionalAttribute(locator, attributeName);
-
-  if (!value)
-    throw new Error(`Unable to extract required field: ${fieldName}.`);
-
-  return value;
-}
-
-async function optionalAttribute(
-  locator: Locator,
-  attributeName: string,
-): Promise<string | undefined> {
-  if ((await locator.count()) === 0) return undefined;
-  return (await locator.getAttribute(attributeName))?.trim() || undefined;
-}
-
-async function optionalTexts(locator: Locator): Promise<string[] | undefined> {
-  const values = (await locator.allInnerTexts())
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  return values.length > 0 ? [...new Set(values)] : undefined;
-}
-
-function includesText(values: string[], expected: string): boolean {
-  return values.some((value) =>
-    value.toLowerCase().includes(expected.toLowerCase()),
-  );
 }

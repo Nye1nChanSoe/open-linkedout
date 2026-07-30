@@ -2,6 +2,7 @@ import { JobDiscoveryRepository } from "@database/repositories/job-discovery.rep
 import { JobRepository } from "@database/repositories/job.repository.js";
 import pc from "picocolors";
 import { PersistenceError } from "@/app/errors/persistence-error.js";
+import { isDatabaseBusyError } from "@/utils/utils.js";
 import type { DatabaseConnectionType } from "@/types/database.type.js";
 import type {
   PersistDiscoveredJobsInputType,
@@ -80,7 +81,7 @@ export class PersistDiscoveredJobsService {
     let insertedDiscoveryCount = 0;
     let updatedDiscoveryCount = 0;
 
-    for (const [index, scrapedJob] of input.jobs.entries()) {
+    for (const [index, scrapedJob] of input.extractedJobs.entries()) {
       const jobResult = this.jobRepository.upsertJob({
         linkedinJobId: scrapedJob.jobId,
         title: scrapedJob.title,
@@ -120,25 +121,12 @@ export class PersistDiscoveredJobsService {
     }
 
     return {
-      receivedCount: input.jobs.length,
-      uniqueJobCount: input.jobs.length,
+      receivedCount: input.extractedJobs.length,
+      uniqueJobCount: input.extractedJobs.length,
       insertedJobCount,
       updatedJobCount,
       insertedDiscoveryCount,
       updatedDiscoveryCount,
     };
   }
-}
-
-/**
- * Checks whether SQLite rejected the operation because the database is busy.
- * @param error - Original error thrown by better-sqlite3.
- */
-function isDatabaseBusyError(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "SQLITE_BUSY"
-  );
 }

@@ -57,7 +57,7 @@ export class ScrapeAndPersistOrchestratorService {
             keyword: input.keyword,
             searchLocation: input.searchLocation,
             pageNumber,
-            jobs,
+            extractedJobs: jobs,
           }),
       );
 

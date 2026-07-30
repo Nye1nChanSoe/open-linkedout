@@ -43,3 +43,28 @@ export type ScrapedJobType = {
   isEarlyApplicant: boolean;
   isEasyApply: boolean;
 };
+
+
+export type ScrapedJobDetailType = {
+  /**
+   * Visible text from the LinkedIn job-detail header, including job metadata.
+   */
+  headerText: string;
+
+  /**
+   * Full visible text from the LinkedIn job-description section.
+   */
+  descriptionText: string;
+
+  /**
+   * https://www.linkedin.com/jobs/view/<linkedin-jobid>
+   */
+  sourceUrl: string;
+
+  /**
+   * After clicking "Show Match Detail"
+   * there's AI response text recommendation
+   * LinkedIn feature
+   */
+  linkedinShowMatchDetailsAiText?: string;
+};
