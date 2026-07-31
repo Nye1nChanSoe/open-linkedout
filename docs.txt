@@ -1,0 +1,42 @@
+Ok Docs!
+
+pdf and docx their diffs...
+
+Let me start with what a pdf is.
+
+
+PDF is binary file format. PDF are NOT text documents.
+PDF is drawing instructions - Everything is painted onto page.
+
+Hello World -> glyphs .....
+
+-----
+Flow
+-----
+Read PDF 
+    -> Parse Objects 
+    -> Find Page Tree 
+    -> Find Content Streams 
+    -> Decompress Streams 
+    -> Interpret Drawing Commands
+    -> Recover Text
+
+PDF behaves like append-only log meaning 
+    Instead of rewriting the whole file
+        OLD PDF + New Objects + New xref  + New trailer     (are appended)
+
+    Old objects remains in the file. 
+    That's why people call PDFs "immutable" -> actually its incremenally updated
+
+
+** PDFs can contain images instead of text
+    Made by taking a picture or scanning a paper document   (SCANNED)
+    Created digitally from programs like Word               (TEXT)
+
+    Extraction then requires OCR
+
+
+
+
+
+

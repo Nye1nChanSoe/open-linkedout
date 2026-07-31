@@ -4,3 +4,5 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 data/browser-data/
+
+data/NyeinChanSoe_Resume_2026.pdf
