@@ -1,5 +1,5 @@
 import domEventConfig from "@/config/dom-event.config.js";
-import searchPageLocatorConfig from "@/config/search-page-locators.config.js";
+import { searchLocatorConfig as locator } from "@/config/linkedin-locators.config.js";
 import type { Locator, Page } from "playwright";
 
 /**
@@ -47,11 +47,9 @@ export class JobsSearchPage {
     this.keywordInput = page.getByLabel("Search by title, skill, or company");
     this.locationInput = page.getByLabel("City, state, or zip code");
 
-    this.virtualizedJobCards = page.locator(
-      searchPageLocatorConfig.virtualizedCard,
-    );
+    this.virtualizedJobCards = page.locator(locator.virtualizedCard);
     this.hydratedJobCards = this.virtualizedJobCards.locator(
-      searchPageLocatorConfig.hydratedCard,
+      locator.hydratedCard,
     );
 
     this.filtersButton = page.getByRole("button", {
@@ -134,7 +132,7 @@ export class JobsSearchPage {
         cards
           .map((card) => card.getAttribute(jobIdAttribute))
           .filter((jobId): jobId is string => Boolean(jobId)),
-      searchPageLocatorConfig.jobIdAttribute,
+      locator.jobIdAttribute,
     );
 
     return jobIds.join("|");
@@ -171,9 +169,9 @@ export class JobsSearchPage {
         // Serialized and passed into the browser context because the callback
         // cannot directly access Node.js variables.
         previousSnapshot: previousFingerprint,
-        virtualizedCard: searchPageLocatorConfig.virtualizedCard,
-        hydratedCard: searchPageLocatorConfig.hydratedCard,
-        jobIdAttribute: searchPageLocatorConfig.jobIdAttribute,
+        virtualizedCard: locator.virtualizedCard,
+        hydratedCard: locator.hydratedCard,
+        jobIdAttribute: locator.jobIdAttribute,
       },
       { timeout },
     );
@@ -207,7 +205,7 @@ export class JobsSearchPage {
   }
 
   hydratedJobCard(slot: Locator): Locator {
-    return slot.locator(searchPageLocatorConfig.hydratedCard);
+    return slot.locator(locator.hydratedCard);
   }
 
   /**
@@ -221,7 +219,7 @@ export class JobsSearchPage {
   ): Promise<Locator> {
     const hydratedCard = this.hydratedJobCard(slot);
     await hydratedCard
-      .locator(searchPageLocatorConfig.title)
+      .locator(locator.title)
       .first()
       .filter({ hasText: /\S/ })
       .waitFor({ state: "visible", timeout });

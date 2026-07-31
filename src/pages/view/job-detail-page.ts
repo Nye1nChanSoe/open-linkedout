@@ -1,5 +1,5 @@
 import type { Locator, Page } from "playwright";
-import detailPageLocatorConfig from "@/config/detail-page-locators.config.js";
+import { detailLocatorConfig as locator } from "@/config/linkedin-locators.config.js";
 
 /**
  * Page object for LinkedIn's `/jobs/view/:jobId` page.
@@ -13,30 +13,24 @@ export class JobDetailPage {
   readonly showMatchDetailsLink: Locator;
   readonly matchDetailsText: Locator;
 
-  /**
-   * @param page - Active LinkedIn Playwright page.
-   */
   constructor(private readonly page: Page) {
     this.jobHeader = page
-      .locator(detailPageLocatorConfig.jobHeaderCandidate)
-      .filter({ has: page.locator(detailPageLocatorConfig.company) })
+      .locator(locator.jobHeader)
+      .filter({ has: page.locator(locator.saveJobButton) })
       .first();
-    this.description = page
-      .locator(detailPageLocatorConfig.description)
-      .first();
-    this.showMatchDetailsLink = page.locator(
-      detailPageLocatorConfig.matchDetailsTrigger,
-    );
-    this.matchDetailsText = page
-      .locator(detailPageLocatorConfig.matchDetailsText)
-      .first();
+
+    this.description = page.locator(locator.aboutTheJob).first();
+
+    this.showMatchDetailsLink = page.locator(locator.matchDetailsTrigger);
+
+    this.matchDetailsText = page.locator(locator.matchDetailsText).first();
   }
 
   /**
    * Waits until the required job-detail content is visible and non-empty.
    * @param timeout - Maximum wait time in milliseconds.
    */
-  async waitForContent(timeout = 15_000): Promise<void> {
+  async waitForContent(timeout = 10_000): Promise<void> {
     await this.jobHeader
       .filter({ hasText: /\S/ })
       .waitFor({ state: "visible", timeout });

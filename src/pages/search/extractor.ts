@@ -1,7 +1,7 @@
 import type { ScrapedJobType } from "@/types/scraped-job.type.js";
 import type { Locator } from "playwright";
 
-import searchPageLocatorConfig from "@/config/search-page-locators.config.js";
+import { searchLocatorConfig } from "@/config/linkedin-locators.config.js";
 import {
   includesText,
   optionalAttribute,
@@ -29,7 +29,7 @@ export async function extractJobCardData(
     salary,
     insights,
     footerItems,
-  } = searchPageLocatorConfig;
+  } = searchLocatorConfig;
 
   const titleLink = hydratedCard.locator(url).first();
   const timeElement = hydratedCard.locator(postedAgo).first();

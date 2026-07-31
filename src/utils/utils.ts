@@ -46,14 +46,17 @@ export function buildDetailViewURLParams(url: string, jobID: string): string {
 export async function debugDOMLogs(page: Page) {
   page.on(domeventConfig.EVENT_FRAME_NAVIGATED_PW, (frame) => {
     if (frame === page.mainFrame()) {
-      console.log(pc.cyan("[NAVIGATION]"), pc.dim(frame.url()));
+      console.log(pc.cyan("[NAVIGATION]"), pc.dim(formatDebugUrl(frame.url())));
     }
   });
   page.on(domeventConfig.EVENT_DOMCONTENTLOADED, () => {
-    console.log(pc.blue("[DOM CONTENT LOADED]"), pc.dim(page.url()));
+    console.log(
+      pc.blue("[DOM CONTENT LOADED]"),
+      pc.dim(formatDebugUrl(page.url())),
+    );
   });
   page.on(domeventConfig.EVENT_LOAD, () => {
-    console.log(pc.green("[LOAD]"), pc.dim(page.url()));
+    console.log(pc.green("[LOAD]"), pc.dim(formatDebugUrl(page.url())));
   });
 
   await page.addInitScript(() => {
@@ -74,7 +77,7 @@ export async function debugDOMLogs(page: Page) {
 
   page.on("console", (message) => {
     const text = message.text();
-    if (text.startsWith("[HISTORY")) console.log(pc.magenta(text));
+    if (text.startsWith("[HISTORY")) console.log(pc.magenta(formatDebugUrl(text)));
   });
 }
 
@@ -189,4 +192,13 @@ export function toScrapingError(error: unknown): ScrapingError {
  */
 function isNetworkError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("net::ERR_");
+}
+
+/**
+ * Shortens LinkedIn job-detail URLs for readable debug logs.
+ * @param url - URL or log line containing a LinkedIn job-detail URL.
+ * @returns URL with job-detail query parameters removed.
+ */
+export function formatDebugUrl(url: string): string {
+  return url.replace(/(\/jobs\/view\/\d+)(?:\/?\?.*)$/, "$1");
 }

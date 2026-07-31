@@ -16,7 +16,10 @@ import { extractJobDetailData } from "@/pages/view/extractor.js";
 import { JobDetailPage } from "@/pages/view/job-detail-page.js";
 import { assertAuthenticated } from "./authentication.js";
 
-const JOB_ID = "4441184555";
+// troublesome linkedin job - now it solves:
+// this happens because the jobHeader was filtered with locator.company
+// which simply doesnt have company name
+const JOB_ID = "4444891633";
 
 const context = await chromium.launchPersistentContext(
   scraperConfig.PERSISTENT_BROWSER_DATA_PATH,
@@ -67,8 +70,6 @@ const {
 console.info(
   pc.green("Extracted detail"),
   pc.dim(":"),
-  pc.blue(sourceUrl),
-  pc.dim("|"),
   pc.cyan(`${headerText.length} header chars`),
   pc.dim("|"),
   pc.cyan(`${descriptionText.length} description chars`),

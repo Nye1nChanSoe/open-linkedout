@@ -1,6 +1,7 @@
-import type { Page } from "playwright";
+import { errors, type Page } from "playwright";
 import pc from "picocolors";
 
+import { ScrapingError } from "@/app/errors/scraping-error.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { PersistJobDetailService } from "@/app/services/persist-job-detail.service.js";
 import domEventConfig from "@/config/dom-event.config.js";
@@ -59,12 +60,13 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
    * @returns Raw data extracted from the loaded job-detail page.
    */
   private async extractJobDetail(): Promise<ScrapedJobDetailType> {
+    const jobDetailPage = new JobDetailPage(this.page);
+    await this.waitForSupportedContent(jobDetailPage);
+
     return this.retryPolicy.execute(
       { operationName: "extract LinkedIn job detail" },
       async () => {
         try {
-          const jobDetailPage = new JobDetailPage(this.page);
-          await jobDetailPage.waitForContent();
           await jobDetailPage.openMatchDetails();
 
           const extracted = await extractJobDetailData(jobDetailPage);
@@ -72,8 +74,6 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
           console.info(
             pc.green("Extracted detail"),
             pc.dim(":"),
-            pc.blue(extracted.sourceUrl),
-            pc.dim("|"),
             pc.cyan(`${extracted.headerText.length} header chars`),
             pc.dim("|"),
             pc.cyan(`${extracted.descriptionText.length} description chars`),
@@ -90,6 +90,40 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
           throw toScrapingError(error);
         }
       },
+    );
+  }
+
+  /**
+   * Wrapper of `waitForContent` and try 3 times
+   * before it fails with non-retryable error
+   * NOTE: i dont wrap with retryPolicy for now!
+   * @param jobDetailPage - Page object for the loaded LinkedIn job detail.
+   */
+  private async waitForSupportedContent(
+    jobDetailPage: JobDetailPage,
+  ): Promise<void> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await jobDetailPage.waitForContent(3_000);
+        return;
+      } catch (error) {
+        if (!(error instanceof errors.TimeoutError)) {
+          throw toScrapingError(error);
+        }
+        lastError = error;
+        console.warn(pc.yellow(`[Retry]: (attempt ${attempt}/3).`));
+        if (attempt < 3) {
+          await this.page.waitForTimeout(500);
+        }
+      }
+    }
+
+    throw new ScrapingError(
+      "LinkedIn job detail page has an unsupported header layout.",
+      "INVALID_SCRAPED_DATA",
+      false,
+      lastError,
     );
   }
 

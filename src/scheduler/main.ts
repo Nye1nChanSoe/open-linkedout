@@ -37,14 +37,15 @@ try {
 
   const schedulerTaskRepository = new SchedulerTaskRepository(conn);
 
-  // TODO: Remove after task creation is handled by a command or dashboard.
   const schedulerTaskService = new SchedulerTaskService(
     schedulerTaskRepository,
   );
+  // TODO: Remove after task creation is handled by a command or dashboard.
+  // This is root task to start a chain of scheduled tasks
   schedulerTaskService.createDiscoveryRunTask({
     keyword: "software engineer",
-    searchLocation: "thailand",
-    maxPages: 5,
+    searchLocation: "Vietnam",
+    maxPages: 1,
   });
 
   const jobRepository = new JobRepository(conn);
