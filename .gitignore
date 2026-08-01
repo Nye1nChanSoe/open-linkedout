@@ -4,5 +4,6 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 data/browser-data/
+data/resumes/
 
-data/NyeinChanSoe_Resume_2026.pdf
+**/.DS_Store

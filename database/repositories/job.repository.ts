@@ -7,7 +7,6 @@ import type {
   InsertJobParamsType,
   DBJobRowType,
   JobUpsertInputType,
-  JobUpsertResultType,
   UpdateJobParamsType,
 } from "@/types/job-repository.type.js";
 
@@ -30,15 +29,8 @@ export class JobRepository {
     [UpdateJobParamsType]
   >;
 
-  /**
-   * Creates a repository for the canonical jobs table.
-   * @param database - Open SQLite database connection.
-   */
   constructor(private readonly database: DatabaseConnectionType) {
-    this.findByLinkedInJobIdStatement = database.prepare<
-      FindJobByLinkedInJobIdParamsType,
-      DBJobRowType
-    >(
+    this.findByLinkedInJobIdStatement = database.prepare(
       `
       SELECT *
       FROM jobs
@@ -46,10 +38,7 @@ export class JobRepository {
     `,
     );
 
-    this.findByIdStatement = database.prepare<
-      FindJobByIdParamsType,
-      DBJobRowType
-    >(
+    this.findByIdStatement = database.prepare(
       `
       SELECT *
       FROM jobs
@@ -57,7 +46,7 @@ export class JobRepository {
     `,
     );
 
-    this.insertJobStatement = database.prepare<InsertJobParamsType>(
+    this.insertJobStatement = database.prepare(
       `
       INSERT INTO jobs (
         linkedin_job_id,
@@ -100,7 +89,7 @@ export class JobRepository {
     `,
     );
 
-    this.updateJobStatement = database.prepare<UpdateJobParamsType>(
+    this.updateJobStatement = database.prepare(
       `
       UPDATE jobs
       SET
@@ -128,7 +117,7 @@ export class JobRepository {
    * @param linkedinJobId - LinkedIn's external job identifier.
    * @returns Matching canonical job, if present.
    */
-  findByLinkedInJobId(linkedinJobId: string): DBJobRowType | undefined {
+  findByLinkedInJobId(linkedinJobId: string) {
     return this.findByLinkedInJobIdStatement.get({
       linkedin_job_id: linkedinJobId,
     });
@@ -139,7 +128,7 @@ export class JobRepository {
    * @param id - Canonical jobs table identifier.
    * @returns Matching canonical job, if present.
    */
-  findById(id: number): DBJobRowType | undefined {
+  findById(id: number) {
     return this.findByIdStatement.get({ id });
   }
 
@@ -148,7 +137,7 @@ export class JobRepository {
    * @param input - Latest scraped job-card data.
    * @returns Persisted canonical job and insert status.
    */
-  upsertJob(input: JobUpsertInputType): JobUpsertResultType {
+  upsertJob(input: JobUpsertInputType) {
     const existingJob = this.findByLinkedInJobId(input.linkedinJobId);
     const timestamp = new Date().toISOString();
 

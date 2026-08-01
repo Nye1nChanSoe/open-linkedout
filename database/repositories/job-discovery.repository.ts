@@ -7,7 +7,6 @@ import type {
   InsertJobDiscoveryParamsType,
   DBJobDiscoveryRowType,
   JobDiscoveryUpsertInputType,
-  JobDiscoveryUpsertResultType,
   UpdateJobDiscoveryParamsType,
 } from "@/types/job-discovery-repository.type.js";
 
@@ -30,15 +29,8 @@ export class JobDiscoveryRepository {
     [UpdateJobDiscoveryParamsType]
   >;
 
-  /**
-   * Creates a repository for the job discoveries table.
-   * @param database - Open SQLite database connection.
-   */
   constructor(private readonly database: DatabaseConnectionType) {
-    this.findDiscoveryStatement = database.prepare<
-      FindJobDiscoveryParamsType,
-      DBJobDiscoveryRowType
-    >(
+    this.findDiscoveryStatement = database.prepare(
       `
       SELECT *
       FROM job_discoveries
@@ -49,10 +41,7 @@ export class JobDiscoveryRepository {
     `,
     );
 
-    this.findByJobIdStatement = database.prepare<
-      FindJobDiscoveriesByJobIdParamsType,
-      DBJobDiscoveryRowType
-    >(
+    this.findByJobIdStatement = database.prepare(
       `
       SELECT *
       FROM job_discoveries
@@ -60,9 +49,8 @@ export class JobDiscoveryRepository {
     `,
     );
 
-    this.insertDiscoveryStatement =
-      database.prepare<InsertJobDiscoveryParamsType>(
-        `
+    this.insertDiscoveryStatement = database.prepare(
+      `
       INSERT INTO job_discoveries (
         job_id,
         keyword,
@@ -80,13 +68,12 @@ export class JobDiscoveryRepository {
         @position,
         @is_promoted,
         @discovered_at
-      );
-    `,
-      );
+    );
+      `,
+    );
 
-    this.updateDiscoveryStatement =
-      database.prepare<UpdateJobDiscoveryParamsType>(
-        `
+    this.updateDiscoveryStatement = database.prepare(
+      `
       UPDATE job_discoveries
       SET
         position = @position,
@@ -96,8 +83,8 @@ export class JobDiscoveryRepository {
         AND keyword = @keyword
         AND search_location = @search_location
         AND page_number = @page_number;
-    `,
-      );
+      `,
+    );
   }
 
   /**
@@ -107,7 +94,7 @@ export class JobDiscoveryRepository {
    */
   findDiscovery(
     input: FindJobDiscoveryParamsType,
-  ): DBJobDiscoveryRowType | undefined {
+  ) {
     return this.findDiscoveryStatement.get(input);
   }
 
@@ -116,7 +103,7 @@ export class JobDiscoveryRepository {
    * @param jobId - Canonical jobs table identifier.
    * @returns Discovery observations for the job.
    */
-  findByJobId(jobId: number): DBJobDiscoveryRowType[] {
+  findByJobId(jobId: number) {
     return this.findByJobIdStatement.all({ job_id: jobId });
   }
 
@@ -127,7 +114,7 @@ export class JobDiscoveryRepository {
    */
   upsertDiscovery(
     input: JobDiscoveryUpsertInputType,
-  ): JobDiscoveryUpsertResultType {
+  ) {
     const identity: FindJobDiscoveryParamsType = {
       job_id: input.jobId,
       keyword: input.keyword,

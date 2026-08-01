@@ -36,7 +36,12 @@ PDF behaves like append-only log meaning
     Extraction then requires OCR
 
 
+Now docx:
+    ZIP archive containing XML files and assets.
 
+    resume.docx -> unzip
+        = document.xml + styles.xml + numbering.xml + media/* ...
 
-
-
+    document.xml contains most document content.
+    numbering.xml contains list and bullets
+    styles.xml contains headings and styles

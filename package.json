@@ -5,13 +5,16 @@
   "type": "module",
   "scripts": {
     "scheduler": "tsx src/scheduler/main.ts",
+    "db:migrate": "tsx database/migrate.ts",
     "typecheck": "tsc --noEmit",
     "scrape:search": "tsx src/scraper/main.ts",
     "scrape:detail": "tsx src/scraper/detail-page.ts",
-    "db:migrate": "tsx database/migrate.ts"
+    "resume:import": "tsx src/cli-resume-importer/main.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.1",
+    "mammoth": "^1.12.0",
+    "pdfjs-dist": "^6.2.108",
     "picocolors": "^1.1.1",
     "playwright": "^1.61.1"
   },

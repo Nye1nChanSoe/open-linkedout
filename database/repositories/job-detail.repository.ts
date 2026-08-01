@@ -6,7 +6,6 @@ import type {
   FindJobDetailByJobIdParamsType,
   InsertJobDetailParamsType,
   JobDetailUpsertInputType,
-  JobDetailUpsertResultType,
   UpdateJobDetailParamsType,
 } from "@/types/job-detail.type.js";
 
@@ -24,14 +23,8 @@ export class JobDetailRepository {
     [UpdateJobDetailParamsType]
   >;
 
-  /**
-   * @param database - Open SQLite database connection.
-   */
   constructor(private readonly database: DatabaseConnectionType) {
-    this.findByJobIdStatement = database.prepare<
-      FindJobDetailByJobIdParamsType,
-      DBJobDetailRowType
-    >(
+    this.findByJobIdStatement = database.prepare(
       `
       SELECT *
       FROM job_details
@@ -39,7 +32,7 @@ export class JobDetailRepository {
     `,
     );
 
-    this.insertJobDetailStatement = database.prepare<InsertJobDetailParamsType>(
+    this.insertJobDetailStatement = database.prepare(
       `
       INSERT INTO job_details (
         job_id,
@@ -70,7 +63,7 @@ export class JobDetailRepository {
     `,
     );
 
-    this.updateJobDetailStatement = database.prepare<UpdateJobDetailParamsType>(
+    this.updateJobDetailStatement = database.prepare(
       `
       UPDATE job_details
       SET
@@ -93,7 +86,7 @@ export class JobDetailRepository {
    * @param jobId - Internal canonical job identifier.
    * @returns Matching detail record, if present.
    */
-  findByJobId(jobId: number): DBJobDetailRowType | undefined {
+  findByJobId(jobId: number) {
     return this.findByJobIdStatement.get({ job_id: jobId });
   }
 
@@ -102,7 +95,7 @@ export class JobDetailRepository {
    * @param input - Latest raw data scraped from the job detail page.
    * @returns Persisted detail record and insert status.
    */
-  upsertJobDetail(input: JobDetailUpsertInputType): JobDetailUpsertResultType {
+  upsertJobDetail(input: JobDetailUpsertInputType) {
     const existingJobDetail = this.findByJobId(input.jobId);
     const timestamp = new Date().toISOString();
     const applicationStatus = input.applicationStatus ?? "unknown";

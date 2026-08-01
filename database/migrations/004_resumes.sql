@@ -4,14 +4,16 @@ CREATE TABLE resumes (
     id INTEGER PRIMARY KEY,
 
 
-    -- filenames
+    /**
+    * file_name: internally generated filename
+    * original_file_name: uploaded filename
+    */
     file_name TEXT NOT NULL,
     original_file_name TEXT NOT NULL,
 
     -- metadata
     content_hash TEXT NOT NULL UNIQUE,
     source_format TEXT NOT NULL,
-    mime_type TEXT NOT NULL,
     file_size_bytes INTEGER NOT NULL,
 
     /**

@@ -51,10 +51,7 @@ export class SchedulerTaskRepository {
   ) => DBSchedulerTaskRowType[];
 
   constructor(private readonly database: DatabaseConnectionType) {
-    this.findByIdStatement = database.prepare<
-      FindSchedulerTaskByIdParamsType,
-      DBSchedulerTaskRowType
-    >(
+    this.findByIdStatement = database.prepare(
       `
       SELECT *
       FROM scheduler_tasks
@@ -62,7 +59,7 @@ export class SchedulerTaskRepository {
     `,
     );
 
-    this.insertTaskStatement = database.prepare<InsertSchedulerTaskParamsType>(
+    this.insertTaskStatement = database.prepare(
       `
       INSERT INTO scheduler_tasks (
         task_type,
@@ -91,10 +88,7 @@ export class SchedulerTaskRepository {
     `,
     );
 
-    this.claimNextEligibleTaskStatement = database.prepare<
-      ClaimNextEligibleTaskParamsType,
-      DBSchedulerTaskRowType
-    >(
+    this.claimNextEligibleTaskStatement = database.prepare(
       `
       UPDATE scheduler_tasks
       SET
@@ -117,20 +111,18 @@ export class SchedulerTaskRepository {
     `,
     );
 
-    this.recoverRunningTasksStatement =
-      database.prepare<RecoverRunningTasksParamsType>(
-        `
+    this.recoverRunningTasksStatement = database.prepare(
+      `
       UPDATE scheduler_tasks
       SET
         status = @pending_status,
         updated_at = @updated_at
       WHERE status = @running_status;
-    `,
-      );
+      `,
+    );
 
-    this.markCompletedStatement =
-      database.prepare<MarkSchedulerTaskCompletedParamsType>(
-        `
+    this.markCompletedStatement = database.prepare(
+      `
       UPDATE scheduler_tasks
       SET
         status = @completed_status,
@@ -139,12 +131,11 @@ export class SchedulerTaskRepository {
         completed_at = @completed_at,
         updated_at = @updated_at
       WHERE id = @id;
-    `,
-      );
+      `,
+    );
 
-    this.markRetryWaitingStatement =
-      database.prepare<MarkSchedulerTaskRetryWaitingParamsType>(
-        `
+    this.markRetryWaitingStatement = database.prepare(
+      `
       UPDATE scheduler_tasks
       SET
         status = @retry_wait_status,
@@ -152,12 +143,11 @@ export class SchedulerTaskRepository {
         last_error = @last_error,
         updated_at = @updated_at
       WHERE id = @id;
-    `,
-      );
+      `,
+    );
 
-    this.markFailedStatement =
-      database.prepare<MarkSchedulerTaskFailedParamsType>(
-        `
+    this.markFailedStatement = database.prepare(
+      `
       UPDATE scheduler_tasks
       SET
         status = @failed_status,
@@ -166,8 +156,8 @@ export class SchedulerTaskRepository {
         completed_at = @completed_at,
         updated_at = @updated_at
       WHERE id = @id;
-    `,
-      );
+      `,
+    );
 
     this.createJobDetailScrapeTasksTransaction = database.transaction(
       (jobIds: CanonicalJobIdType[]) =>
@@ -180,7 +170,7 @@ export class SchedulerTaskRepository {
    * @param id - Durable scheduler task identifier.
    * @returns Matching task, if present.
    */
-  findById(id: number): DBSchedulerTaskRowType | undefined {
+  findById(id: number) {
     return this.findByIdStatement.get({ id });
   }
 
@@ -191,7 +181,7 @@ export class SchedulerTaskRepository {
    */
   createDiscoveryRunTask(
     input: CreateDiscoveryRunTaskInputType,
-  ): DBSchedulerTaskRowType {
+  ) {
     const timestamp = new Date().toISOString();
     const task: InsertSchedulerTaskParamsType = {
       task_type: "discovery_run",
@@ -218,7 +208,7 @@ export class SchedulerTaskRepository {
    */
   createJobDetailScrapeTask(
     input: JobDetailScrapeTaskPayloadType,
-  ): DBSchedulerTaskRowType {
+  ) {
     const timestamp = new Date().toISOString();
     const task: InsertSchedulerTaskParamsType = {
       task_type: "job_detail_scrape",
@@ -245,7 +235,7 @@ export class SchedulerTaskRepository {
    */
   createJobDetailScrapeTasks(
     jobIds: CanonicalJobIdType[],
-  ): DBSchedulerTaskRowType[] {
+  ) {
     return this.createJobDetailScrapeTasksTransaction(jobIds);
   }
 
@@ -253,7 +243,7 @@ export class SchedulerTaskRepository {
    * Atomically claims the oldest task currently eligible for execution.
    * @returns Claimed task, if one is eligible.
    */
-  claimNextEligibleTask(): DBSchedulerTaskRowType | undefined {
+  claimNextEligibleTask() {
     return this.claimNextEligibleTaskStatement.get({
       pending_status: "pending",
       retry_wait_status: "retry_wait",
@@ -266,7 +256,7 @@ export class SchedulerTaskRepository {
    * Returns tasks left running by a previous application process to pending.
    * @returns Number of recovered tasks.
    */
-  recoverRunningTasks(): number {
+  recoverRunningTasks() {
     const result = this.recoverRunningTasksStatement.run({
       running_status: "running",
       pending_status: "pending",
@@ -280,7 +270,7 @@ export class SchedulerTaskRepository {
    * Marks a task as completed.
    * @param id - Durable scheduler task identifier.
    */
-  markCompleted(id: number): void {
+  markCompleted(id: number) {
     const timestamp = new Date().toISOString();
 
     this.markCompletedStatement.run({
@@ -301,7 +291,7 @@ export class SchedulerTaskRepository {
     id: number,
     nextEligibleAt: string,
     lastError: string,
-  ): void {
+  ) {
     this.markRetryWaitingStatement.run({
       id,
       retry_wait_status: "retry_wait",
@@ -316,7 +306,7 @@ export class SchedulerTaskRepository {
    * @param id - Durable scheduler task identifier.
    * @param lastError - Failure message from the final attempt.
    */
-  markFailed(id: number, lastError: string): void {
+  markFailed(id: number, lastError: string) {
     const timestamp = new Date().toISOString();
 
     this.markFailedStatement.run({
