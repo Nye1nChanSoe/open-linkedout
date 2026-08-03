@@ -12,6 +12,11 @@ export type ResumeExtractionMethodType =
 
 export type ResumeSourceFormatType = "pdf" | "docx" | "txt";
 
+export type ResumeExtractionResultType = {
+  rawText: string;
+  pageCount?: number;
+};
+
 export type DBResumeRowType = {
   id: number;
   file_name: string;

@@ -45,3 +45,8 @@ Now docx:
     document.xml contains most document content.
     numbering.xml contains list and bullets
     styles.xml contains headings and styles
+
+
+
+------
+Extraction processing pipeline
