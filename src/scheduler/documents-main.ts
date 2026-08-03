@@ -6,6 +6,7 @@ import { TextResumeExtractor } from "@/app/documents/text-resume-extractor.js";
 import { Scheduler } from "@/app/scheduler/scheduler.js";
 import { ResumeProcessTask } from "@/app/scheduler/tasks/resume-process.task.js";
 import { ResumeProcessingService } from "@/app/services/resume-processing.service.js";
+import { sleep } from "@/utils/utils.js";
 import { createDatabaseConnection } from "@database/connection.js";
 import { ResumeRepository } from "@database/repositories/resume.repository.js";
 import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
@@ -27,9 +28,17 @@ try {
   ]);
 
   scheduler.recoverInterruptedTasks();
-  while (await scheduler.run()) {}
+  console.info(pc.green("Document scheduler started."));
 
-  console.info(pc.green("Document scheduler finished."));
+  while (true) {
+    const wasTaskProcessed = await scheduler.run();
+
+    // NOTE: can improve this further by making the worker sleep
+    // until the nearest next_eligible_at time
+    if (!wasTaskProcessed) {
+      await sleep(1_000);
+    }
+  }
 } finally {
   database.close();
 }
