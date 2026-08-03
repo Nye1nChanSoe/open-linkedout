@@ -21,7 +21,7 @@ export class ScrapeAndPersistOrchestratorService {
   ) {}
 
   /**
-   * Scrapes and persists LinkedIn results one page at a time.
+   * Scrapes and persists LinkedIn results ONE page at a time.
    * @param input - Search context and maximum number of pages to process.
    * @returns Aggregate counts from all processed pages.
    */
@@ -66,6 +66,7 @@ export class ScrapeAndPersistOrchestratorService {
       updatedDiscoveryCount += pageResult.updatedDiscoveryCount;
 
       // NOTE: now we run the pipeline synchronously
+      // After discovery_run -> each job_detail_scrape will be processed by the scheduler
       this.schedulerTaskService.batchCreateJobDetailScrapeTasks(
         pageResult.canonicalJobIds,
       );
