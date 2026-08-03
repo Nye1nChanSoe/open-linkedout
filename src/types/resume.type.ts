@@ -49,6 +49,23 @@ export type InsertResumeParamsType = {
   updated_at: string;
 };
 
+export type UpdateResumeProcessingStatusParamsType = {
+  id: number;
+  processing_status: ResumeProcessingStatusType;
+  error_message: string | null;
+  updated_at: string;
+};
+
+export type SaveNativeResumeExtractionParamsType = {
+  id: number;
+  raw_text: string;
+  normalized_text: string;
+  page_count: number | null;
+  extraction_method: "native";
+  processing_status: "completed";
+  updated_at: string;
+};
+
 export type CreateResumeInputType = {
   fileName: string;
   originalFileName: string;

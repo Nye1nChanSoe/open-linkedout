@@ -1,8 +1,8 @@
 import pc from "picocolors";
 
 import { ResumeService } from "@/app/services/resume.service.js";
-import { ResumeRepository } from "@database/repositories/resume.repository.js";
 import { createDatabaseConnection } from "@database/connection.js";
+import { ResumeRepository } from "@database/repositories/resume.repository.js";
 
 const sourcePath = process.argv[2];
 

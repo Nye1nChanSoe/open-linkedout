@@ -1,0 +1,29 @@
+Pipeline
+---------
+
+Scrape Worker
+    discovery + detail pages
+
+Document Worker
+    resume parsing + normalization
+
+Local-AI worker
+    resume structured inference
+    resume embeddings
+    job structured inference
+    job embeddings
+
+Match worker
+    compare ready job and resume embeddings
+    store score/ranking
+
+
+
+----------------------
+state "PENDING"
+    -> native extraction
+    -> normalization
+    -> quality validation
+    -> change state ( completed, needs_ocr, failed )
+
+

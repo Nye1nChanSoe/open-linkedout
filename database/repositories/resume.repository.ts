@@ -7,6 +7,9 @@ import type {
   FindResumeByContentHashParamsType,
   FindResumeByIdParamsType,
   InsertResumeParamsType,
+  ResumeProcessingStatusType,
+  SaveNativeResumeExtractionParamsType,
+  UpdateResumeProcessingStatusParamsType,
 } from "@/types/resume.type.js";
 
 export class ResumeRepository {
@@ -22,6 +25,14 @@ export class ResumeRepository {
 
   private readonly insertResumeStatement: BetterSqlite3.Statement<
     [InsertResumeParamsType]
+  >;
+
+  private readonly updateProcessingStatusStatement: BetterSqlite3.Statement<
+    [UpdateResumeProcessingStatusParamsType]
+  >;
+
+  private readonly saveNativeExtractionStatement: BetterSqlite3.Statement<
+    [SaveNativeResumeExtractionParamsType]
   >;
 
   constructor(private readonly database: DatabaseConnectionType) {
@@ -63,6 +74,33 @@ export class ResumeRepository {
       );
     `,
     );
+
+    this.updateProcessingStatusStatement = database.prepare(
+      `
+      UPDATE resumes
+      SET
+        processing_status = @processing_status,
+        error_message = @error_message,
+        updated_at = @updated_at
+      WHERE id = @id;
+    `,
+    );
+
+    this.saveNativeExtractionStatement = database.prepare(
+      `
+      UPDATE resumes
+      SET
+        raw_text = @raw_text,
+        normalized_text = @normalized_text,
+        page_count = @page_count,
+        extraction_method = @extraction_method,
+        processing_status = @processing_status,
+        error_message = NULL,
+        updated_at = @updated_at
+      WHERE id = @id;
+    `,
+    );
+
   }
 
   /**
@@ -100,5 +138,47 @@ export class ResumeRepository {
     });
 
     return this.findById(Number(result.lastInsertRowid))!;
+  }
+
+  /**
+   * records extraction method as `native`, and changes status to `completed`.
+   * @param id - Resume database identifier.
+   * @param rawText - Text extracted directly from the source file.
+   * @param normalizedText - Normalized text ready for later processing.
+   * @param pageCount - Source PDF page count, when available.
+   */
+  saveNativeExtraction(
+    id: number,
+    rawText: string,
+    normalizedText: string,
+    pageCount: number | undefined,
+  ) {
+    this.saveNativeExtractionStatement.run({
+      id,
+      raw_text: rawText,
+      normalized_text: normalizedText,
+      page_count: pageCount ?? null,
+      extraction_method: "native",
+      processing_status: "completed",
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * @param id - Resume database identifier.
+   * @param status - New resume processing status.
+   * @param errorMessage - Processing failure description, if any.
+   */
+  updateProcessingStatus(
+    id: number,
+    status: ResumeProcessingStatusType,
+    errorMessage?: string,
+  ) {
+    this.updateProcessingStatusStatement.run({
+      id,
+      processing_status: status,
+      error_message: errorMessage ?? null,
+      updated_at: new Date().toISOString(),
+    });
   }
 }
