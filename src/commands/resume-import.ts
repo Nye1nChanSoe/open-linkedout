@@ -1,8 +1,10 @@
 import pc from "picocolors";
 
 import { ResumeService } from "@/app/services/resume.service.js";
+import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";
 import { createDatabaseConnection } from "@database/connection.js";
 import { ResumeRepository } from "@database/repositories/resume.repository.js";
+import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
 
 const sourcePath = process.argv[2];
 
@@ -14,7 +16,11 @@ if (!sourcePath) {
 const database = createDatabaseConnection();
 
 try {
-  const resumeService = new ResumeService(new ResumeRepository(database));
+  const resumeService = new ResumeService(
+    new ResumeRepository(database),
+    // TODO: currently passed schedulertaskservice directly for simplicity
+    new SchedulerTaskService(new SchedulerTaskRepository(database)),
+  );
   const result = await resumeService.execute({ sourcePath });
 
   console.info(

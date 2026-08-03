@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "scheduler": "tsx src/scheduler/main.ts",
+    "scheduler:documents": "tsx src/scheduler/documents-main.ts",
     "db:migrate": "tsx database/migrate.ts",
     "typecheck": "tsc --noEmit",
     "scrape:search": "tsx src/scraper/main.ts",

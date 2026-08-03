@@ -3,23 +3,30 @@ import { ApplicationError } from "@/app/errors/application-error.js";
 import { calculateExponentialBackoffDelay } from "@/app/retry/exponential-backoff.js";
 import retryConfig from "@/config/retry.config.js";
 import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.js";
-import type { DBSchedulerTaskRowType } from "@/types/scheduler-task.type.js";
+import type {
+  DBSchedulerTaskRowType,
+  SchedulerTaskType,
+} from "@/types/scheduler-task.type.js";
 
 /**
  * Claims durable tasks and dispatches them to their matching task executors.
  */
 export class Scheduler {
+  private readonly taskTypes: SchedulerTaskType[];
+
   constructor(
     private readonly schedulerTaskRepository: SchedulerTaskRepository,
     private readonly taskExecutors: SchedulerTaskContract[],
-  ) {}
+  ) {
+    this.taskTypes = taskExecutors.map((taskExecutor) => taskExecutor.taskType);
+  }
 
   /**
    * Recovers tasks left running by a previous application process.
    * @returns Number of tasks returned to pending.
    */
   recoverInterruptedTasks(): number {
-    return this.schedulerTaskRepository.recoverRunningTasks();
+    return this.schedulerTaskRepository.recoverRunningTasks(this.taskTypes);
   }
 
   /**
@@ -27,7 +34,9 @@ export class Scheduler {
    * @returns Whether a task was claimed.
    */
   async run(): Promise<boolean> {
-    const task = this.schedulerTaskRepository.claimNextEligibleTask();
+    const task = this.schedulerTaskRepository.claimNextEligibleTask(
+      this.taskTypes,
+    );
 
     if (!task) return false;
 

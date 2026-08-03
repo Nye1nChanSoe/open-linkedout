@@ -17,7 +17,10 @@ export type SchedulerTaskStatusType =
   /** Stopped intentionally and never run automatically. */
   | "cancelled";
 
-export type SchedulerTaskType = "discovery_run" | "job_detail_scrape";
+export type SchedulerTaskType =
+  | "discovery_run"
+  | "job_detail_scrape"
+  | "resume_process";
 
 /** orchestrator.execute input requirements */
 export type DiscoveryRunTaskPayloadType = {
@@ -29,6 +32,11 @@ export type DiscoveryRunTaskPayloadType = {
 /** Canonical job whose LinkedIn detail page should be scraped. */
 export type JobDetailScrapeTaskPayloadType = {
   job_id: CanonicalJobIdType;
+};
+
+/** Resume whose stored file should be parsed natively. */
+export type ResumeProcessTaskPayloadType = {
+  resume_id: number;
 };
 
 export type CreateDiscoveryRunTaskInputType = DiscoveryRunTaskPayloadType;
@@ -57,12 +65,14 @@ export type ClaimNextEligibleTaskParamsType = {
   pending_status: SchedulerTaskStatusType;
   retry_wait_status: SchedulerTaskStatusType;
   running_status: SchedulerTaskStatusType;
+  task_types_json: string;
   timestamp: string;
 };
 
 export type RecoverRunningTasksParamsType = {
   running_status: SchedulerTaskStatusType;
   pending_status: SchedulerTaskStatusType;
+  task_types_json: string;
   updated_at: string;
 };
 

@@ -38,6 +38,17 @@ export class SchedulerTaskService {
   }
 
   /**
+   * Creates one pending resume-processing task.
+   * @param resumeId - Resume database identifier to process.
+   * @returns Newly created durable scheduler task.
+   */
+  createResumeProcessTask(resumeId: number): DBSchedulerTaskRowType {
+    return this.schedulerTaskRepository.createResumeProcessTask({
+      resume_id: resumeId,
+    });
+  }
+
+  /**
    * Creates pending job-detail scrape tasks in one transaction.
    * @param jobIds - Internal canonical job identifiers to scrape.
    * @returns Newly created durable scheduler tasks in the supplied job order.

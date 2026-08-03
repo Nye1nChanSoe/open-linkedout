@@ -13,6 +13,8 @@ import type {
   MarkSchedulerTaskFailedParamsType,
   MarkSchedulerTaskRetryWaitingParamsType,
   RecoverRunningTasksParamsType,
+  ResumeProcessTaskPayloadType,
+  SchedulerTaskType,
 } from "@/types/scheduler-task.type.js";
 
 export class SchedulerTaskRepository {
@@ -99,10 +101,13 @@ export class SchedulerTaskRepository {
       WHERE id = (
         SELECT id
         FROM scheduler_tasks
-        WHERE status = @pending_status
-          OR (
-            status = @retry_wait_status
-            AND next_eligible_at <= @timestamp
+        WHERE task_type IN (SELECT value FROM json_each(@task_types_json))
+          AND (
+            status = @pending_status
+            OR (
+              status = @retry_wait_status
+              AND next_eligible_at <= @timestamp
+            )
           )
         ORDER BY created_at
         LIMIT 1
@@ -117,7 +122,8 @@ export class SchedulerTaskRepository {
       SET
         status = @pending_status,
         updated_at = @updated_at
-      WHERE status = @running_status;
+      WHERE status = @running_status
+        AND task_type IN (SELECT value FROM json_each(@task_types_json));
       `,
     );
 
@@ -229,6 +235,31 @@ export class SchedulerTaskRepository {
   }
 
   /**
+   * Creates one pending resume-processing task.
+   * @param input - Resume whose stored file should be parsed natively.
+   * @returns Newly created durable task.
+   */
+  createResumeProcessTask(input: ResumeProcessTaskPayloadType) {
+    const timestamp = new Date().toISOString();
+    const task: InsertSchedulerTaskParamsType = {
+      task_type: "resume_process",
+      payload_json: JSON.stringify(input),
+      status: "pending",
+      attempt_count: 0,
+      next_eligible_at: null,
+      last_error: null,
+      created_at: timestamp,
+      started_at: null,
+      completed_at: null,
+      updated_at: timestamp,
+    };
+
+    const result = this.insertTaskStatement.run(task);
+
+    return this.findById(Number(result.lastInsertRowid))!;
+  }
+
+  /**
    * Creates pending job-detail scrape tasks in one transaction.
    * @param jobIds - Canonical jobs to scrape from LinkedIn detail pages.
    * @returns Newly created durable tasks in the supplied job order.
@@ -240,26 +271,30 @@ export class SchedulerTaskRepository {
   }
 
   /**
-   * Atomically claims the oldest task currently eligible for execution.
+   * Atomically claims the oldest eligible task supported by this worker.
+   * @param taskTypes - Task types the worker can execute.
    * @returns Claimed task, if one is eligible.
    */
-  claimNextEligibleTask() {
+  claimNextEligibleTask(taskTypes: SchedulerTaskType[]) {
     return this.claimNextEligibleTaskStatement.get({
       pending_status: "pending",
       retry_wait_status: "retry_wait",
       running_status: "running",
+      task_types_json: JSON.stringify(taskTypes),
       timestamp: new Date().toISOString(),
     });
   }
 
   /**
-   * Returns tasks left running by a previous application process to pending.
+   * Returns supported tasks left running by a previous application process to pending.
+   * @param taskTypes - Task types the worker can execute.
    * @returns Number of recovered tasks.
    */
-  recoverRunningTasks() {
+  recoverRunningTasks(taskTypes: SchedulerTaskType[]) {
     const result = this.recoverRunningTasksStatement.run({
       running_status: "running",
       pending_status: "pending",
+      task_types_json: JSON.stringify(taskTypes),
       updated_at: new Date().toISOString(),
     });
 

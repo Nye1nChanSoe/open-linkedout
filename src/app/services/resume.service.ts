@@ -3,6 +3,7 @@ import {
   ImportResumeResultType,
 } from "@/types/resume.type.js";
 import config from "@config/resume.config.js";
+import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";
 import { ResumeRepository } from "@database/repositories/resume.repository.js";
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, readFile, stat } from "node:fs/promises";
@@ -13,7 +14,11 @@ import { basename, extname, join } from "node:path";
  * running locally.
  */
 export class ResumeService {
-  constructor(private readonly resumeRepository: ResumeRepository) {}
+  constructor(
+    private readonly resumeRepository: ResumeRepository,
+    // TODO: move scheduler service to resume-orchestrator service later
+    private readonly schedulerTaskService: SchedulerTaskService,
+  ) {}
 
   /**
    * Stores a supported resume file
@@ -53,6 +58,8 @@ export class ResumeService {
       sourceFormat: format.format,
       fileSizeBytes: fileStats.size,
     });
+    // TODO: move scheduler service to resume-orchestrator service later
+    this.schedulerTaskService.createResumeProcessTask(resume.id);
 
     return { resume, wasImported: true };
   }
