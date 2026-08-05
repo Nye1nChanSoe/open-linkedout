@@ -1,6 +1,7 @@
 import path from "node:path";
 import pc from "picocolors";
 import { errors, type Page } from "playwright";
+import { PersistenceError } from "@/app/errors/persistence-error.js";
 import { ScrapingError } from "@/app/errors/scraping-error.js";
 import domeventConfig from "@/config/dom-event.config.js";
 import type { RetryContextType } from "@/types/retry.type.js";
@@ -77,7 +78,8 @@ export async function debugDOMLogs(page: Page) {
 
   page.on("console", (message) => {
     const text = message.text();
-    if (text.startsWith("[HISTORY")) console.log(pc.magenta(formatDebugUrl(text)));
+    if (text.startsWith("[HISTORY"))
+      console.log(pc.magenta(formatDebugUrl(text)));
   });
 }
 
@@ -137,6 +139,30 @@ export function isDatabaseBusyError(error: unknown): boolean {
     "code" in error &&
     error.code === "SQLITE_BUSY"
   );
+}
+
+/**
+ * Runs a synchronous repository operation and classifies SQLite failures.
+ * @param operationName - Description included in any persistence error.
+ * @param operation - Repository operation to execute.
+ * @returns Repository operation result.
+ */
+export function runRepositoryOperationSafely<T>(
+  operationName: string,
+  operation: () => T,
+): T {
+  try {
+    return operation();
+  } catch (error) {
+    const isDatabaseBusy = isDatabaseBusyError(error);
+
+    throw new PersistenceError(
+      `Failed to ${operationName}.`,
+      isDatabaseBusy ? "DATABASE_BUSY" : "DATABASE_ERROR",
+      isDatabaseBusy,
+      error,
+    );
+  }
 }
 
 /**
@@ -201,4 +227,20 @@ function isNetworkError(error: unknown): boolean {
  */
 export function formatDebugUrl(url: string): string {
   return url.replace(/(\/jobs\/view\/\d+)(?:\/?\?.*)$/, "$1");
+}
+
+/**
+ * @param value - Response field to normalize.
+ * @returns Number when the value is numeric.
+ */
+export function numberOrUndefined(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+/**
+ * @param value - Response field to normalize.
+ * @returns String when the value is a string.
+ */
+export function stringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }

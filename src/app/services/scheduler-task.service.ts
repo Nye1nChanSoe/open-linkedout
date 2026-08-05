@@ -49,6 +49,17 @@ export class SchedulerTaskService {
   }
 
   /**
+   * Creates one pending resume-inference task.
+   * @param resumeId - Resume database identifier to infer.
+   * @returns Newly created durable scheduler task.
+   */
+  createResumeInferenceTask(resumeId: number): DBSchedulerTaskRowType {
+    return this.schedulerTaskRepository.createResumeInferenceTask({
+      resume_id: resumeId,
+    });
+  }
+
+  /**
    * Creates pending job-detail scrape tasks in one transaction.
    * @param jobIds - Internal canonical job identifiers to scrape.
    * @returns Newly created durable scheduler tasks in the supplied job order.

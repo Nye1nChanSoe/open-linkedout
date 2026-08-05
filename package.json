@@ -11,7 +11,8 @@
     "scrape:search": "tsx src/scraper/main.ts",
     "scrape:detail": "tsx src/scraper/detail-page.ts",
     "resume:import": "tsx src/commands/resume-import.ts",
-    "resume:process": "tsx src/commands/resume-process.ts"
+    "resume:process": "tsx src/commands/resume-process.ts",
+    "resume:infer": "tsx src/commands/resume-inference.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.1",

@@ -4,7 +4,7 @@ import { PersistenceError } from "@/app/errors/persistence-error.js";
 import config from "@/config/resume.config.js";
 import type { ResumeExtractorContract } from "@/contracts/resume-extractor.contract.js";
 import { ResumeRepository } from "@database/repositories/resume.repository.js";
-import { isDatabaseBusyError } from "@/utils/utils.js";
+import { runRepositoryOperationSafely } from "@/utils/utils.js";
 
 export class ResumeProcessingService {
   constructor(
@@ -18,9 +18,8 @@ export class ResumeProcessingService {
    * @returns Processed resume record.
   */
   async execute(resumeId: number) {
-    const resume = this.executeRepositoryOperation(
-      resumeId,
-      "load resume",
+    const resume = runRepositoryOperationSafely(
+      `load resume ${resumeId}`,
       () => this.resumeRepository.findById(resumeId),
     );
 
@@ -50,7 +49,7 @@ export class ResumeProcessingService {
         `No extractor is configured for ${resume.source_format} resumes.`,
       );
 
-    this.executeRepositoryOperation(resume.id, "mark resume processing", () =>
+    runRepositoryOperationSafely(`mark resume ${resume.id} processing`, () =>
       this.resumeRepository.updateProcessingStatus(resume.id, "processing"),
     );
 
@@ -62,13 +61,12 @@ export class ResumeProcessingService {
       const normalizedText = this.normalizeText(extraction.rawText);
 
       if (!this.hasUsableText(normalizedText)) {
-        this.executeRepositoryOperation(resume.id, "mark resume needs OCR", () =>
+        runRepositoryOperationSafely(`mark resume ${resume.id} needs OCR`, () =>
           this.resumeRepository.updateProcessingStatus(resume.id, "needs_ocr"),
         );
       } else {
-        this.executeRepositoryOperation(
-          resume.id,
-          "save native resume extraction",
+        runRepositoryOperationSafely(
+          `save native extraction for resume ${resume.id}`,
           () =>
             this.resumeRepository.saveNativeExtraction(
               resume.id,
@@ -86,9 +84,8 @@ export class ResumeProcessingService {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      this.executeRepositoryOperation(
-        resume.id,
-        "mark resume failed",
+      runRepositoryOperationSafely(
+        `mark resume ${resume.id} failed`,
         () =>
           this.resumeRepository.updateProcessingStatus(
             resume.id,
@@ -100,13 +97,14 @@ export class ResumeProcessingService {
       throw error;
     }
 
-    return this.executeRepositoryOperation(
-      resume.id,
-      "load processed resume",
+    return runRepositoryOperationSafely(
+      `load processed resume ${resume.id}`,
       () => this.resumeRepository.findById(resume.id)!,
     );
   }
 
+  // TODO: Preserve document headings and paragraph boundaries for richer semantic parsing.
+  // V1 only normalizes whitespace before LLM inference.
   private normalizeText(rawText: string) {
     return rawText
       .replace(/\r\n?/g, "\n")
@@ -121,28 +119,4 @@ export class ResumeProcessingService {
     return normalizedText.length > 0;
   }
 
-  /**
-   * @param resumeId - Resume database identifier.
-   * @param operationName - Repository operation being executed.
-   * @param operation - Synchronous repository operation.
-   * @returns Repository operation result.
-   */
-  private executeRepositoryOperation<T>(
-    resumeId: number,
-    operationName: string,
-    operation: () => T,
-  ): T {
-    try {
-      return operation();
-    } catch (error) {
-      const isDatabaseBusy = isDatabaseBusyError(error);
-
-      throw new PersistenceError(
-        `Failed to ${operationName} for resume ${resumeId}.`,
-        isDatabaseBusy ? "DATABASE_BUSY" : "DATABASE_ERROR",
-        isDatabaseBusy,
-        error,
-      );
-    }
-  }
 }
