@@ -1,4 +1,5 @@
 -- Source resumes imported for local profile matching.
+-- The extracted content itself lives in resume_extractions
 
 CREATE TABLE resumes (
     id INTEGER PRIMARY KEY,
@@ -16,17 +17,6 @@ CREATE TABLE resumes (
     source_format TEXT NOT NULL,
     file_size_bytes INTEGER NOT NULL,
 
-    /**
-    * Extraction:
-    * raw_text: raw text extracted from the uploaded file.
-    * normalized_text: used by later inference and matching.
-    */
-    raw_text TEXT,
-    normalized_text TEXT,
-    page_count INTEGER,
-    extraction_method TEXT,
-    extractor_version TEXT,
-
     -- lifecycle
     processing_status TEXT NOT NULL DEFAULT 'pending',
 
@@ -36,17 +26,11 @@ CREATE TABLE resumes (
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT resumes_source_format_check
-        CHECK (source_format IN ('pdf', 'docx', 'txt')),
+        CHECK (source_format IN ('pdf', 'docx')),
 
     CONSTRAINT resumes_processing_status_check
         CHECK (processing_status IN (
             'pending', 'processing', 'completed',
             'needs_ocr', 'failed'
-        )),
-
-    CONSTRAINT resumes_extraction_method_check
-        CHECK (
-            extraction_method IS NULL
-            OR extraction_method IN ('native', 'ocr', 'manual')
-        )
+        ))
 );
