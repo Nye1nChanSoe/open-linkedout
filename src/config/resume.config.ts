@@ -13,7 +13,6 @@ const config = {
   SUPPORTED_RESUME_FORMATS: {
     ".pdf": { format: "pdf" },
     ".docx": { format: "docx" },
-    ".txt": { format: "txt" },
   } as Record<string, { format: ResumeSourceFormatType }>,
 
   /**

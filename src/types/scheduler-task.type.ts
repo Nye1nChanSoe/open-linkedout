@@ -20,8 +20,7 @@ export type SchedulerTaskStatusType =
 export type SchedulerTaskType =
   | "discovery_run"
   | "job_detail_scrape"
-  | "resume_process"
-  | "resume_inference";
+  | "resume_extract";
 
 /** orchestrator.execute input requirements */
 export type DiscoveryRunTaskPayloadType = {
@@ -35,13 +34,8 @@ export type JobDetailScrapeTaskPayloadType = {
   job_id: CanonicalJobIdType;
 };
 
-/** Resume whose stored file should be parsed natively. */
-export type ResumeProcessTaskPayloadType = {
-  resume_id: number;
-};
-
-/** Resume whose normalized text should be inferred by the local LLM. */
-export type ResumeInferenceTaskPayloadType = {
+/** Resume whose stored file should be extracted by the local extractor. */
+export type ResumeExtractTaskPayloadType = {
   resume_id: number;
 };
 

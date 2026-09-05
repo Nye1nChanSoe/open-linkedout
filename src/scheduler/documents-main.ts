@@ -1,34 +1,48 @@
 import pc from "picocolors";
 
-import { DocxResumeExtractor } from "@/app/documents/docx-resume-extractor.js";
-import { PdfResumeExtractor } from "@/app/documents/pdf-resume-extractor.js";
-import { TextResumeExtractor } from "@/app/documents/text-resume-extractor.js";
+import { RestructRunner } from "@/app/documents/restruct-runner.js";
 import { Scheduler } from "@/app/scheduler/scheduler.js";
-import { ResumeProcessTask } from "@/app/scheduler/tasks/resume-process.task.js";
-import { ResumeProcessingService } from "@/app/services/resume-processing.service.js";
+import { ResumeExtractTask } from "@/app/scheduler/tasks/resume-extract.task.js";
+import { ResumeExtractionService } from "@/app/services/resume-extraction.service.js";
+import restructConfig from "@/config/restruct.config.js";
 import { sleep } from "@/utils/utils.js";
 import { createDatabaseConnection } from "@database/connection.js";
+import { ResumeExtractionRepository } from "@database/repositories/resume-extraction.repository.js";
 import { ResumeRepository } from "@database/repositories/resume.repository.js";
 import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
 
 const database = createDatabaseConnection();
 
 try {
+  const resumeExtractor = new RestructRunner();
+
+  // Fails before any task is claimed. `--version` is answered before the
+  // extractor loads its weights, so this costs nothing.
+  const extractorVersion = await resumeExtractor.readVersion();
+
+  if (extractorVersion !== restructConfig.PINNED_VERSION) {
+    throw new Error(
+      `Resume extractor ${extractorVersion} does not match the pinned ` +
+        `${restructConfig.PINNED_VERSION}. Run \`npm run setup:extractor\`.`,
+    );
+  }
+
   const schedulerTaskRepository = new SchedulerTaskRepository(database);
-  const resumeProcessingService = new ResumeProcessingService(
+  const resumeExtractionService = new ResumeExtractionService(
     new ResumeRepository(database),
-    [
-      new PdfResumeExtractor(),
-      new DocxResumeExtractor(),
-      new TextResumeExtractor(),
-    ],
+    new ResumeExtractionRepository(database),
+    resumeExtractor,
   );
   const scheduler = new Scheduler(schedulerTaskRepository, [
-    new ResumeProcessTask(resumeProcessingService),
+    new ResumeExtractTask(resumeExtractionService),
   ]);
 
   scheduler.recoverInterruptedTasks();
-  console.info(pc.green("Document scheduler started."));
+  console.info(
+    pc.green("Document scheduler started."),
+    pc.dim(":"),
+    pc.cyan(`restruct ${extractorVersion}`),
+  );
 
   while (true) {
     const wasTaskProcessed = await scheduler.run();

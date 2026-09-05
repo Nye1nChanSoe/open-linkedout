@@ -38,23 +38,12 @@ export class SchedulerTaskService {
   }
 
   /**
-   * Creates one pending resume-processing task.
-   * @param resumeId - Resume database identifier to process.
+   * Creates one pending resume-extraction task.
+   * @param resumeId - Resume database identifier to extract.
    * @returns Newly created durable scheduler task.
    */
-  createResumeProcessTask(resumeId: number): DBSchedulerTaskRowType {
-    return this.schedulerTaskRepository.createResumeProcessTask({
-      resume_id: resumeId,
-    });
-  }
-
-  /**
-   * Creates one pending resume-inference task.
-   * @param resumeId - Resume database identifier to infer.
-   * @returns Newly created durable scheduler task.
-   */
-  createResumeInferenceTask(resumeId: number): DBSchedulerTaskRowType {
-    return this.schedulerTaskRepository.createResumeInferenceTask({
+  createResumeExtractTask(resumeId: number): DBSchedulerTaskRowType {
+    return this.schedulerTaskRepository.createResumeExtractTask({
       resume_id: resumeId,
     });
   }

@@ -59,7 +59,7 @@ export class ResumeService {
       fileSizeBytes: fileStats.size,
     });
     // TODO: move scheduler service to resume-orchestrator service later
-    this.schedulerTaskService.createResumeProcessTask(resume.id);
+    this.schedulerTaskService.createResumeExtractTask(resume.id);
 
     return { resume, wasImported: true };
   }

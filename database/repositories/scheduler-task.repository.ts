@@ -13,8 +13,7 @@ import type {
   MarkSchedulerTaskFailedParamsType,
   MarkSchedulerTaskRetryWaitingParamsType,
   RecoverRunningTasksParamsType,
-  ResumeInferenceTaskPayloadType,
-  ResumeProcessTaskPayloadType,
+  ResumeExtractTaskPayloadType,
   SchedulerTaskType,
 } from "@/types/scheduler-task.type.js";
 
@@ -236,39 +235,14 @@ export class SchedulerTaskRepository {
   }
 
   /**
-   * Creates one pending resume-processing task.
-   * @param input - Resume whose stored file should be parsed natively.
+   * Creates one pending resume-extraction task.
+   * @param input - Resume whose stored file should be extracted.
    * @returns Newly created durable task.
    */
-  createResumeProcessTask(input: ResumeProcessTaskPayloadType) {
+  createResumeExtractTask(input: ResumeExtractTaskPayloadType) {
     const timestamp = new Date().toISOString();
     const task: InsertSchedulerTaskParamsType = {
-      task_type: "resume_process",
-      payload_json: JSON.stringify(input),
-      status: "pending",
-      attempt_count: 0,
-      next_eligible_at: null,
-      last_error: null,
-      created_at: timestamp,
-      started_at: null,
-      completed_at: null,
-      updated_at: timestamp,
-    };
-
-    const result = this.insertTaskStatement.run(task);
-
-    return this.findById(Number(result.lastInsertRowid))!;
-  }
-
-  /**
-   * Creates one pending resume-inference task.
-   * @param input - Resume whose normalized text should be inferred.
-   * @returns Newly created durable task.
-   */
-  createResumeInferenceTask(input: ResumeInferenceTaskPayloadType) {
-    const timestamp = new Date().toISOString();
-    const task: InsertSchedulerTaskParamsType = {
-      task_type: "resume_inference",
+      task_type: "resume_extract",
       payload_json: JSON.stringify(input),
       status: "pending",
       attempt_count: 0,

@@ -4,20 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "setup": "npm run setup:extractor && npm run setup:models",
+    "setup:extractor": "uv venv .venv && uv pip install --python .venv restruct-cv==0.2.3",
+    "setup:models": "RESTRUCT_MODELS_DIRECTORY=\"$PWD/models\" ./.venv/bin/restruct --install-models",
     "scheduler": "tsx src/scheduler/main.ts",
     "scheduler:documents": "tsx src/scheduler/documents-main.ts",
     "db:migrate": "tsx database/migrate.ts",
     "typecheck": "tsc --noEmit",
     "scrape:search": "tsx src/scraper/main.ts",
     "scrape:detail": "tsx src/scraper/detail-page.ts",
-    "resume:import": "tsx src/commands/resume-import.ts",
-    "resume:process": "tsx src/commands/resume-process.ts",
-    "resume:infer": "tsx src/commands/resume-inference.ts"
+    "resume:import": "tsx src/commands/resume-import.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.1",
-    "mammoth": "^1.12.0",
-    "pdfjs-dist": "^6.2.108",
     "picocolors": "^1.1.1",
     "playwright": "^1.61.1"
   },

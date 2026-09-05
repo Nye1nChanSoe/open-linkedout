@@ -1,14 +1,18 @@
-import type {
-  ResumeExtractionResultType,
-  ResumeSourceFormatType,
-} from "@/types/resume.type.js";
+import type { RestructExtractionResultType } from "@/types/resume-extraction.type.js";
 
 export interface ResumeExtractorContract {
-  readonly sourceFormat: ResumeSourceFormatType;
+  /**
+   * @returns Version string reported by the installed extractor.
+   */
+  readVersion(): Promise<string>;
 
   /**
    * @param filePath - Absolute path to the stored resume file.
-   * @returns Raw text and optional page count extracted from the file.
+   * @param outputPath - Absolute path the resume JSON is written to.
+   * @returns Parsed document and the artifact it was read from.
    */
-  extract(filePath: string): Promise<ResumeExtractionResultType>;
+  extract(
+    filePath: string,
+    outputPath: string,
+  ): Promise<RestructExtractionResultType>;
 }

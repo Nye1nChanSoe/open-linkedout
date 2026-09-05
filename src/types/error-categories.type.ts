@@ -9,9 +9,12 @@ export type ApplicationErrorCodeType =
   | "AUTHENTICATION_ERROR"
   | "DATABASE_BUSY"
   | "DATABASE_ERROR"
-  | "LLM_UNAVAILABLE"
-  | "LLM_INVALID_RESPONSE"
   | "INVALID_SCRAPED_DATA"
+  | "INVALID_RESUME_INPUT"
+  | "EXTRACTOR_UNAVAILABLE"
+  | "EXTRACTOR_OCR_UNAVAILABLE"
+  | "EXTRACTION_FAILED"
+  | "EXTRACTION_OUTPUT_ERROR"
   | "UNKNOWN_ERROR";
 
 // Normally retryable
@@ -20,12 +23,15 @@ export type ApplicationErrorCodeType =
 // SCRAPE_TIMEOUT     LinkedIn page did not settle in time
 // BROWSER_ERROR      temporary Playwright/browser failure
 // DATABASE_BUSY      SQLite is temporarily locked
-// LLM_UNAVAILABLE    Ollama is offline, busy, rate limited, or returned 5xx
+// EXTRACTION_OUTPUT_ERROR   The extractor could not write its result
 
 // Normally non-retryable
 // ----------------------
 // AUTHENTICATION_ERROR    LinkedIn requires a manual browser login
 // INVALID_SCRAPED_DATA    Required LinkedIn data is unavailable or malformed
 // DATABASE_ERROR          SQLite schema or query failure
-// LLM_INVALID_RESPONSE    Ollama response cannot be parsed or validated
-// UNKNOWN_ERROR           Unclassified application failure
+// INVALID_RESUME_INPUT       Resume file is missing, unsupported, or unreadable
+// EXTRACTOR_UNAVAILABLE      Extractor binary or model weights are not installed
+// EXTRACTOR_OCR_UNAVAILABLE  Document needs OCR and Tesseract is not installed
+// EXTRACTION_FAILED          Extraction is deterministic, so a repeat fails alike
+// UNKNOWN_ERROR              Unclassified application failure

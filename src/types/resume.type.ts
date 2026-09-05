@@ -1,21 +1,11 @@
 export type ResumeProcessingStatusType =
-  | "pending" // waiting for text extraction
-  | "processing" // text extraction is in progress
-  | "completed" // text extraction finished successfully
-  | "needs_ocr" // no usable native text was found
-  | "failed"; // text extraction could not be completed
+  | "pending" // waiting for extraction
+  | "processing" // extraction is in progress
+  | "completed" // extraction finished successfully
+  | "needs_ocr" // the document needs OCR and this machine cannot run it
+  | "failed"; // extraction could not be completed
 
-export type ResumeExtractionMethodType =
-  | "native" // text extracted directly from the file
-  | "ocr" // text produced through optical character recognition
-  | "manual"; // text supplied or corrected by the user
-
-export type ResumeSourceFormatType = "pdf" | "docx" | "txt";
-
-export type ResumeExtractionResultType = {
-  rawText: string;
-  pageCount?: number;
-};
+export type ResumeSourceFormatType = "pdf" | "docx";
 
 export type DBResumeRowType = {
   id: number;
@@ -24,11 +14,6 @@ export type DBResumeRowType = {
   content_hash: string;
   source_format: ResumeSourceFormatType;
   file_size_bytes: number;
-  raw_text: string | null;
-  normalized_text: string | null;
-  page_count: number | null;
-  extraction_method: ResumeExtractionMethodType | null;
-  extractor_version: string | null;
   processing_status: ResumeProcessingStatusType;
   error_message: string | null;
   created_at: string;
@@ -56,16 +41,6 @@ export type UpdateResumeProcessingStatusParamsType = {
   updated_at: string;
 };
 
-export type SaveNativeResumeExtractionParamsType = {
-  id: number;
-  raw_text: string;
-  normalized_text: string;
-  page_count: number | null;
-  extraction_method: "native";
-  processing_status: "completed";
-  updated_at: string;
-};
-
 export type CreateResumeInputType = {
   fileName: string;
   originalFileName: string;
@@ -74,8 +49,6 @@ export type CreateResumeInputType = {
   fileSizeBytes: number;
 };
 
-
-// 
 export type ImportResumeInputType = {
   sourcePath: string;
 };

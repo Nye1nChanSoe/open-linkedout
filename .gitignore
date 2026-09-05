@@ -1,10 +1,20 @@
 node_modules
 
+# Local restruct extractor: an installed dependency, not source.
+.venv/
+
+# ONNX weights downloaded by `npm run setup:models` (352 MB).
+models/
+
 data/*.db
 data/*.db-shm
 data/*.db-wal
 data/browser-data/
 data/resumes/
-data/llm-debugs/
+data/extractions/
+data/debugs/
+
+data/*.pdf
+data/*.docx
 
 **/.DS_Store
