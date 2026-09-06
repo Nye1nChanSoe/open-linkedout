@@ -50,33 +50,53 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
     await this.navigateToJobDetail(job.canonical_url);
     await assertAuthenticated(this.page);
 
+    const jobDetailPage = new JobDetailPage(this.page);
+    const applicationStatus = await this.classifyPage(jobDetailPage);
+
+    // A job that no longer takes applications is recorded and not read
+    if (applicationStatus !== "open") {
+      console.info(
+        pc.yellow("Skipped detail"),
+        pc.dim(":"),
+        pc.cyan(`job ${job.id}`),
+        pc.dim("|"),
+        pc.cyan(applicationStatus),
+      );
+
+      this.persistJobDetailService.execute({
+        jobId: job.id,
+        extractedJobDetail: {
+          headerText: "",
+          descriptionText: "",
+          sourceUrl: jobDetailPage.currentUrl(),
+          applicationStatus,
+        },
+      });
+
+      return;
+    }
+
     this.persistJobDetailService.execute({
       jobId: job.id,
-      extractedJobDetail: await this.extractJobDetail(),
+      extractedJobDetail: await this.extractJobDetail(jobDetailPage),
     });
   }
 
   /**
-   * Waits for, opens, and extracts the LinkedIn job-detail page.
+   * Opens and extracts one job-detail page that still takes applications.
+   * @param jobDetailPage - Page object for the loaded LinkedIn job detail.
    * @returns Raw data extracted from the loaded job-detail page.
    */
-  private async extractJobDetail(): Promise<ScrapedJobDetailType> {
-    const jobDetailPage = new JobDetailPage(this.page);
-    const applicationStatus = await this.classifyPage(jobDetailPage);
-
+  private async extractJobDetail(
+    jobDetailPage: JobDetailPage,
+  ): Promise<ScrapedJobDetailType> {
     return this.retryPolicy.execute(
       { operationName: "extract LinkedIn job detail" },
       async () => {
         try {
-          // An AI match panel only exists while the job is taking applications.
-          if (applicationStatus === "open") {
-            await jobDetailPage.openMatchDetails();
-          }
+          await jobDetailPage.openMatchDetails();
 
-          const extracted = await extractJobDetailData(
-            jobDetailPage,
-            applicationStatus,
-          );
+          const extracted = await extractJobDetailData(jobDetailPage, "open");
 
           console.info(
             pc.green("Extracted detail"),

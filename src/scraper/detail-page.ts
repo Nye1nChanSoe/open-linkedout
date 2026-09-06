@@ -57,9 +57,18 @@ await assertAuthenticated(page);
 const jobDetailPage = new JobDetailPage(page);
 const applicationStatus = await jobDetailPage.waitForContent();
 
-if (applicationStatus === "open") {
-  await jobDetailPage.openMatchDetails();
+if (applicationStatus !== "open") {
+  console.info(
+    pc.yellow("Skipped detail"),
+    pc.dim(":"),
+    pc.cyan(JOB_ID),
+    pc.dim("|"),
+    pc.cyan(applicationStatus),
+  );
+  process.exit(0);
 }
+
+await jobDetailPage.openMatchDetails();
 
 const jobDetail = await extractJobDetailData(jobDetailPage, applicationStatus);
 const {
@@ -87,18 +96,22 @@ const conn = createDatabaseConnection();
 const jobRepository = new JobRepository(conn);
 const canonicalJob = jobRepository.findByLinkedInJobId(JOB_ID);
 
-if (!canonicalJob) {
-  throw new Error(
-    `Cannot persist details: LinkedIn job ${JOB_ID} was not discovered first.`,
+// A debug run is usually pointed at one job by hand, without a discovery
+// run behind it. That is not a reason to lose what was just extracted.
+if (canonicalJob) {
+  const persistJobDetailService = new PersistJobDetailService(
+    new JobDetailRepository(conn),
+  );
+  persistJobDetailService.execute({
+    jobId: canonicalJob.id,
+    extractedJobDetail: jobDetail,
+  });
+} else {
+  console.warn(
+    pc.yellow("Not persisted"),
+    pc.dim(":"),
+    pc.dim(`LinkedIn job ${JOB_ID} has not been discovered yet.`),
   );
 }
-
-const persistJobDetailService = new PersistJobDetailService(
-  new JobDetailRepository(conn),
-);
-persistJobDetailService.execute({
-  jobId: canonicalJob.id,
-  extractedJobDetail: jobDetail,
-});
 
 await new Promise(() => {});

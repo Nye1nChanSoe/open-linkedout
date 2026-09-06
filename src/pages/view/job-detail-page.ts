@@ -9,7 +9,6 @@ import type { JobApplicationStatusType } from "@/types/job-detail.type.js";
  * interaction. Extraction is handled separately by the detail extractor.
  */
 export class JobDetailPage {
-  readonly jobHeader: Locator;
   readonly description: Locator;
   readonly unavailableMarker: Locator;
   readonly applyActions: Locator;
@@ -18,21 +17,11 @@ export class JobDetailPage {
   readonly matchDetailsText: Locator;
 
   constructor(private readonly page: Page) {
-    this.jobHeader = page.locator(locator.jobHeader).first();
-
     this.description = page.locator(locator.aboutTheJob).first();
 
     this.unavailableMarker = page.locator(locator.unavailableMarker).first();
 
-    this.applyActions = page
-      .locator(locator.jobHeader)
-      .locator(
-        [
-          locator.saveJobButton,
-          locator.easyApplyButton,
-          locator.applyButton,
-        ].join(", "),
-      );
+    this.applyActions = page.locator(locator.applyActions);
 
     this.externalApplyLink = page.locator(locator.externalApplyLink).first();
 
@@ -58,6 +47,20 @@ export class JobDetailPage {
     if (!(await this.description.isVisible())) return "unavailable";
 
     return (await this.applyActions.count()) > 0 ? "open" : "closed";
+  }
+
+  /**
+   * Finds the header block using the first anchor that matches.
+   * @returns Header locator, or null when the page uses an unknown layout.
+   */
+  async findHeader(): Promise<Locator | null> {
+    for (const candidate of locator.jobHeaderCandidates) {
+      const header = this.page.locator(candidate).first();
+
+      if ((await header.count()) > 0) return header;
+    }
+
+    return null;
   }
 
   /**

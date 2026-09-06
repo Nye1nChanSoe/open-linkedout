@@ -37,29 +37,36 @@ export const searchLocatorConfig = {
  * Canonical selectors for LinkedIn `/jobs/view/:jobId` detail pages.
  */
 export const detailLocatorConfig = {
-  root: '[data-testid="lazy-column"]',
-
   /**
-   * The root has two children: the header and the description.
-   * The header is located by NOT being the description, never by a button
-   * inside it - a closed job drops its action row and any such filter with it.
+   * The description slot is the only anchor observed on every job-view page.
+   * It carries the job id and is what readiness waits on.
    */
   aboutTheJob: '[id^="JobDetails_AboutTheJob_"]',
-  jobHeader:
-    '[data-testid="lazy-column"] > div:not([id^="JobDetails_AboutTheJob_"])',
+
+  /**
+   * Header anchors, tried in order. LinkedIn has moved this block out of the
+   * lazy-column root at least once, so no single anchor is assumed and a
+   * page that matches none is captured rather than failed.
+   */
+  jobHeaderCandidates: [
+    '[data-testid="job-details-header"]',
+    '[data-testid="lazy-column"] > div:not([id*="JobDetails"])',
+  ],
 
   company: '[aria-label^="Company,"]',
 
   /**
-   * Presence of any action decides `open` against `closed`.
-   * "Apply" excludes "Easy Apply", which starts with a different word.
+   * Presence of any action decides `open` against `closed`. Each label is
+   * matched in full: a bare "Apply" also appears inside similar-job cards.
    */
-  saveJobButton: '[aria-label="Save the job"]',
-  easyApplyButton: '[aria-label^="Easy Apply"]',
-  applyButton: '[aria-label^="Apply"]',
+  applyActions: [
+    '[aria-label="Save the job"]',
+    '[aria-label^="Easy Apply"]',
+    '[aria-label^="Apply on"]',
+  ].join(", "),
 
   /** Only an anchor carries the outbound URL; the button form reveals it on click. */
-  externalApplyLink: 'a[aria-label^="Apply"]',
+  externalApplyLink: 'a[aria-label^="Apply on"]',
 
   /**
    * Secondary signal. Never matching costs nothing: readiness also resolves
