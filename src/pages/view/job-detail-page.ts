@@ -1,5 +1,6 @@
 import type { Locator, Page } from "playwright";
 import { detailLocatorConfig as locator } from "@/config/linkedin-locators.config.js";
+import type { JobApplicationStatusType } from "@/types/job-detail.type.js";
 
 /**
  * Page object for LinkedIn's `/jobs/view/:jobId` page.
@@ -10,16 +11,30 @@ import { detailLocatorConfig as locator } from "@/config/linkedin-locators.confi
 export class JobDetailPage {
   readonly jobHeader: Locator;
   readonly description: Locator;
+  readonly unavailableMarker: Locator;
+  readonly applyActions: Locator;
+  readonly externalApplyLink: Locator;
   readonly showMatchDetailsLink: Locator;
   readonly matchDetailsText: Locator;
 
   constructor(private readonly page: Page) {
-    this.jobHeader = page
-      .locator(locator.jobHeader)
-      .filter({ has: page.locator(locator.saveJobButton) })
-      .first();
+    this.jobHeader = page.locator(locator.jobHeader).first();
 
     this.description = page.locator(locator.aboutTheJob).first();
+
+    this.unavailableMarker = page.locator(locator.unavailableMarker).first();
+
+    this.applyActions = page
+      .locator(locator.jobHeader)
+      .locator(
+        [
+          locator.saveJobButton,
+          locator.easyApplyButton,
+          locator.applyButton,
+        ].join(", "),
+      );
+
+    this.externalApplyLink = page.locator(locator.externalApplyLink).first();
 
     this.showMatchDetailsLink = page.locator(locator.matchDetailsTrigger);
 
@@ -27,28 +42,44 @@ export class JobDetailPage {
   }
 
   /**
-   * Waits until the required job-detail content is visible and non-empty.
+   * Waits for whichever known outcome the page reaches, then classifies it.
+   *
+   * A timeout here means the page reached no outcome this application knows
+   * about, which is the only case worth failing on.
    * @param timeout - Maximum wait time in milliseconds.
+   * @returns Availability of the application on the loaded page.
    */
-  async waitForContent(timeout = 10_000): Promise<void> {
-    await this.jobHeader
-      .filter({ hasText: /\S/ })
-      .waitFor({ state: "visible", timeout });
+  async waitForContent(timeout = 10_000): Promise<JobApplicationStatusType> {
     await this.description
-      .filter({ hasText: /\S/ })
+      .or(this.unavailableMarker)
+      .first()
       .waitFor({ state: "visible", timeout });
+
+    if (!(await this.description.isVisible())) return "unavailable";
+
+    return (await this.applyActions.count()) > 0 ? "open" : "closed";
   }
 
   /**
    * Opens LinkedIn's Show Match Details panel and waits for its AI response.
+   *
+   * The panel is an active-job feature, so its absence is not a failure.
    * @param timeout - Maximum wait time in milliseconds.
    */
   async openMatchDetails(timeout = 15_000): Promise<void> {
-    await this.showMatchDetailsLink.waitFor({ state: "visible", timeout });
-    await this.showMatchDetailsLink.click();
+    const trigger = this.showMatchDetailsLink.first();
+    const isPresent = await trigger
+      .waitFor({ state: "visible", timeout })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!isPresent) return;
+
+    await trigger.click();
     await this.matchDetailsText
       .filter({ hasText: /\S/ })
-      .waitFor({ state: "visible", timeout });
+      .waitFor({ state: "visible", timeout })
+      .catch(() => undefined);
   }
 
   /**

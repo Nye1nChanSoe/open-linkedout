@@ -16,9 +16,8 @@ import { extractJobDetailData } from "@/pages/view/extractor.js";
 import { JobDetailPage } from "@/pages/view/job-detail-page.js";
 import { assertAuthenticated } from "./authentication.js";
 
-// troublesome linkedin job - now it solves:
-// this happens because the jobHeader was filtered with locator.company
-// which simply doesnt have company name
+// Troublesome LinkedIn job: it has since closed, which is what broke the
+// header filter. Kept as the fixture for the closed-job path.
 const JOB_ID = "4444891633";
 
 const context = await chromium.launchPersistentContext(
@@ -56,10 +55,13 @@ await retryPolicy.execute(
 await assertAuthenticated(page);
 
 const jobDetailPage = new JobDetailPage(page);
-await jobDetailPage.waitForContent();
-await jobDetailPage.openMatchDetails();
+const applicationStatus = await jobDetailPage.waitForContent();
 
-const jobDetail = await extractJobDetailData(jobDetailPage);
+if (applicationStatus === "open") {
+  await jobDetailPage.openMatchDetails();
+}
+
+const jobDetail = await extractJobDetailData(jobDetailPage, applicationStatus);
 const {
   headerText,
   descriptionText,
@@ -70,6 +72,8 @@ const {
 console.info(
   pc.green("Extracted detail"),
   pc.dim(":"),
+  pc.cyan(applicationStatus),
+  pc.dim("|"),
   pc.cyan(`${headerText.length} header chars`),
   pc.dim("|"),
   pc.cyan(`${descriptionText.length} description chars`),

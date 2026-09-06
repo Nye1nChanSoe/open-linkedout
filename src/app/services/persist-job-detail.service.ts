@@ -27,11 +27,15 @@ export class PersistJobDetailService {
         sourceUrl: input.extractedJobDetail.sourceUrl,
         linkedinShowMatchDetailsAiText:
           input.extractedJobDetail.linkedinShowMatchDetailsAiText,
+        applicationStatus: input.extractedJobDetail.applicationStatus,
+        externalApplyUrl: input.extractedJobDetail.externalApplyUrl,
       });
 
       console.info(
         pc.blueBright("Persisted job detail:"),
         pc.cyan(`job ${input.jobId}`),
+        pc.dim("|"),
+        pc.cyan(result.jobDetail.application_status),
         pc.dim(result.wasInserted ? "(new)" : "(updated)"),
       );
 

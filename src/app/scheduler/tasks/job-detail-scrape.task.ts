@@ -9,6 +9,7 @@ import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.
 import { extractJobDetailData } from "@/pages/view/extractor.js";
 import { JobDetailPage } from "@/pages/view/job-detail-page.js";
 import { assertAuthenticated } from "@/scraper/authentication.js";
+import type { JobApplicationStatusType } from "@/types/job-detail.type.js";
 import type { ScrapedJobDetailType } from "@/types/scraped-job.type.js";
 import type {
   DBSchedulerTaskRowType,
@@ -61,19 +62,27 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
    */
   private async extractJobDetail(): Promise<ScrapedJobDetailType> {
     const jobDetailPage = new JobDetailPage(this.page);
-    await this.waitForSupportedContent(jobDetailPage);
+    const applicationStatus = await this.classifyPage(jobDetailPage);
 
     return this.retryPolicy.execute(
       { operationName: "extract LinkedIn job detail" },
       async () => {
         try {
-          await jobDetailPage.openMatchDetails();
+          // An AI match panel only exists while the job is taking applications.
+          if (applicationStatus === "open") {
+            await jobDetailPage.openMatchDetails();
+          }
 
-          const extracted = await extractJobDetailData(jobDetailPage);
+          const extracted = await extractJobDetailData(
+            jobDetailPage,
+            applicationStatus,
+          );
 
           console.info(
             pc.green("Extracted detail"),
             pc.dim(":"),
+            pc.cyan(extracted.applicationStatus),
+            pc.dim("|"),
             pc.cyan(`${extracted.headerText.length} header chars`),
             pc.dim("|"),
             pc.cyan(`${extracted.descriptionText.length} description chars`),
@@ -94,37 +103,29 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
   }
 
   /**
-   * Wrapper of `waitForContent` and try 3 times
-   * before it fails with non-retryable error
-   * NOTE: i dont wrap with retryPolicy for now!
+   * Classifies the loaded page as open, closed, or unavailable.
+   *
+   * A settled DOM does not change on a repeat, so this is not retried: a
+   * timeout means the page reached no outcome this application recognises.
    * @param jobDetailPage - Page object for the loaded LinkedIn job detail.
    */
-  private async waitForSupportedContent(
+  private async classifyPage(
     jobDetailPage: JobDetailPage,
-  ): Promise<void> {
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        await jobDetailPage.waitForContent(3_000);
-        return;
-      } catch (error) {
-        if (!(error instanceof errors.TimeoutError)) {
-          throw toScrapingError(error);
-        }
-        lastError = error;
-        console.warn(pc.yellow(`[Retry]: (attempt ${attempt}/3).`));
-        if (attempt < 3) {
-          await this.page.waitForTimeout(500);
-        }
+  ): Promise<JobApplicationStatusType> {
+    try {
+      return await jobDetailPage.waitForContent();
+    } catch (error) {
+      if (!(error instanceof errors.TimeoutError)) {
+        throw toScrapingError(error);
       }
-    }
 
-    throw new ScrapingError(
-      "LinkedIn job detail page has an unsupported header layout.",
-      "INVALID_SCRAPED_DATA",
-      false,
-      lastError,
-    );
+      throw new ScrapingError(
+        "LinkedIn job detail page has an unrecognised layout.",
+        "INVALID_SCRAPED_DATA",
+        false,
+        error,
+      );
+    }
   }
 
   /**

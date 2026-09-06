@@ -1,3 +1,5 @@
+import type { JobApplicationStatusType } from "@/types/job-detail.type.js";
+
 export type ScrapedJobType = {
   jobId: string;
   title: string;
@@ -67,4 +69,14 @@ export type ScrapedJobDetailType = {
    * LinkedIn feature
    */
   linkedinShowMatchDetailsAiText?: string;
+
+  /**
+   * Whether the loaded page still offers an application.
+   */
+  applicationStatus: JobApplicationStatusType;
+
+  /**
+   * Outbound apply URL, when the apply action is a link rather than a button.
+   */
+  externalApplyUrl?: string;
 };

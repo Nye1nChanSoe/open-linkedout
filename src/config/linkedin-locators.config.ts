@@ -38,10 +38,35 @@ export const searchLocatorConfig = {
  */
 export const detailLocatorConfig = {
   root: '[data-testid="lazy-column"]',
-  jobHeader: '[data-testid="lazy-column"] > div',
-  company: '[aria-label^="Company,"]',
-  saveJobButton: '[aria-label="Save the job"]',
+
+  /**
+   * The root has two children: the header and the description.
+   * The header is located by NOT being the description, never by a button
+   * inside it - a closed job drops its action row and any such filter with it.
+   */
   aboutTheJob: '[id^="JobDetails_AboutTheJob_"]',
+  jobHeader:
+    '[data-testid="lazy-column"] > div:not([id^="JobDetails_AboutTheJob_"])',
+
+  company: '[aria-label^="Company,"]',
+
+  /**
+   * Presence of any action decides `open` against `closed`.
+   * "Apply" excludes "Easy Apply", which starts with a different word.
+   */
+  saveJobButton: '[aria-label="Save the job"]',
+  easyApplyButton: '[aria-label^="Easy Apply"]',
+  applyButton: '[aria-label^="Apply"]',
+
+  /** Only an anchor carries the outbound URL; the button form reveals it on click. */
+  externalApplyLink: 'a[aria-label^="Apply"]',
+
+  /**
+   * Secondary signal. Never matching costs nothing: readiness also resolves
+   * on the description, and the action row decides the status either way.
+   */
+  unavailableMarker:
+    "text=/no longer accepting applications|no longer available/i",
 
   matchDetailsTrigger:
     'a[href*="/preload/guideOverlay/"]:has-text("Show match details")',
