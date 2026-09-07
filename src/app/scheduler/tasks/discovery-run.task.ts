@@ -1,3 +1,5 @@
+import { AppEventBus } from "@/app/events/app-event-bus.js";
+import { CampaignService } from "@/app/services/campaign.service.js";
 import { ScrapeAndPersistOrchestratorService } from "@/app/services/scrape-and-persist-orchestrator.service.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import scraperConfig from "@/config/scraper.config.js";
@@ -21,6 +23,8 @@ export class DiscoveryRunTask implements SchedulerTaskContract {
     private readonly scrapeAndPersistOrchestratorService: ScrapeAndPersistOrchestratorService,
     private readonly page: Page,
     private readonly retryPolicy: RetryPolicy,
+    private readonly campaignService: CampaignService,
+    private readonly appEventBus: AppEventBus,
   ) {}
 
   /**
@@ -32,9 +36,18 @@ export class DiscoveryRunTask implements SchedulerTaskContract {
       task.payload_json,
     ) as DiscoveryRunTaskPayloadType;
 
+    const campaignId = task.campaign_id ?? undefined;
+
     await this.navigateToDiscoveryRun(payload);
-    await assertAuthenticated(this.page);
-    await this.scrapeAndPersistOrchestratorService.execute(payload);
+    await assertAuthenticated(this.page, this.appEventBus);
+    await this.scrapeAndPersistOrchestratorService.execute({
+      ...payload,
+      campaignId,
+      isCancelled:
+        campaignId === undefined
+          ? undefined
+          : () => this.campaignService.isCancelled(campaignId),
+    });
   }
 
   /**

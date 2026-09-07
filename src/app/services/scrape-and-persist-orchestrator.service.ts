@@ -1,3 +1,4 @@
+import { AppEventBus } from "@/app/events/app-event-bus.js";
 import { Paginator } from "@/pages/search/paginator.js";
 import { Scroller } from "@/pages/search/scroller.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
@@ -18,6 +19,7 @@ export class ScrapeAndPersistOrchestratorService {
     private readonly persistDiscoveredJobsService: PersistDiscoveredJobsService,
     private readonly retryPolicy: RetryPolicy,
     private readonly schedulerTaskService: SchedulerTaskService,
+    private readonly appEventBus: AppEventBus,
   ) {}
 
   /**
@@ -35,8 +37,16 @@ export class ScrapeAndPersistOrchestratorService {
     let updatedJobCount = 0;
     let insertedDiscoveryCount = 0;
     let updatedDiscoveryCount = 0;
+    let wasCancelled = false;
 
     for (let pageIndex = 0; pageIndex < input.maxPages; pageIndex++) {
+      // Between pages is the only point a long run can stop cleanly: a page
+      // is already persisted or not yet started, never half-saved.
+      if (input.isCancelled?.()) {
+        wasCancelled = true;
+        break;
+      }
+
       const pageNumber = await this.retryPolicy.execute(
         { operationName: "read current page number" },
         () => this.paginator.getCurrentPageNumber(),
@@ -54,6 +64,7 @@ export class ScrapeAndPersistOrchestratorService {
             searchLocation: input.searchLocation,
             pageNumber,
             extractedJobs: jobs,
+            campaignId: input.campaignId,
           }),
       );
 
@@ -69,7 +80,18 @@ export class ScrapeAndPersistOrchestratorService {
       // After discovery_run -> each job_detail_scrape will be processed by the scheduler
       this.schedulerTaskService.batchCreateJobDetailScrapeTasks(
         pageResult.canonicalJobIds,
+        input.campaignId,
       );
+
+      this.appEventBus.publish({
+        type: "discovery.page",
+        campaignId: input.campaignId ?? null,
+        keyword: input.keyword,
+        searchLocation: input.searchLocation,
+        pageNumber,
+        insertedJobCount: pageResult.insertedJobCount,
+        updatedJobCount: pageResult.updatedJobCount,
+      });
 
       const hasNextPage = await this.retryPolicy.execute(
         { operationName: "check next page", pageNumber },
@@ -92,6 +114,7 @@ export class ScrapeAndPersistOrchestratorService {
       updatedJobCount,
       insertedDiscoveryCount,
       updatedDiscoveryCount,
+      wasCancelled,
     };
   }
 }

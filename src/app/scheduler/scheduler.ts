@@ -1,10 +1,13 @@
 import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
 import { ApplicationError } from "@/app/errors/application-error.js";
+import { AppEventBus } from "@/app/events/app-event-bus.js";
+import { CampaignService } from "@/app/services/campaign.service.js";
 import { calculateExponentialBackoffDelay } from "@/app/retry/exponential-backoff.js";
 import retryConfig from "@/config/retry.config.js";
 import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.js";
 import type {
   DBSchedulerTaskRowType,
+  SchedulerTaskStatusType,
   SchedulerTaskType,
 } from "@/types/scheduler-task.type.js";
 
@@ -17,6 +20,8 @@ export class Scheduler {
   constructor(
     private readonly schedulerTaskRepository: SchedulerTaskRepository,
     private readonly taskExecutors: SchedulerTaskContract[],
+    private readonly campaignService: CampaignService,
+    private readonly appEventBus: AppEventBus,
   ) {
     this.taskTypes = taskExecutors.map((taskExecutor) => taskExecutor.taskType);
   }
@@ -40,15 +45,71 @@ export class Scheduler {
 
     if (!task) return false;
 
+    // Claimed before it could be cancelled in the queue, or cancelled while
+    // it waited to retry. Either way it never runs.
+    if (this.isCancelled(task)) {
+      this.schedulerTaskRepository.markCancelled(task.id);
+      this.publishFinished(task, "cancelled");
+      this.settleCampaign(task);
+
+      return true;
+    }
+
+    this.appEventBus.publish({
+      type: "task.claimed",
+      taskId: task.id,
+      taskType: task.task_type,
+      campaignId: task.campaign_id,
+    });
+
     try {
       const taskExecutor = this.findTaskExecutor(task);
       await taskExecutor.execute(task);
       this.schedulerTaskRepository.markCompleted(task.id);
+      this.publishFinished(task, "completed");
     } catch (error) {
       this.handleTaskError(task, error);
     }
 
+    this.settleCampaign(task);
+
     return true;
+  }
+
+  /**
+   * Checks whether a claimed task belongs to a cancelled campaign.
+   * @param task - Claimed durable task.
+   * @returns Whether the task should be abandoned.
+   */
+  private isCancelled(task: DBSchedulerTaskRowType): boolean {
+    if (task.campaign_id === null) return false;
+
+    return this.campaignService.isCancelled(task.campaign_id);
+  }
+
+  /**
+   * Finishes the task's campaign once nothing of it is left to run.
+   * @param task - Task that has just reached a status.
+   */
+  private settleCampaign(task: DBSchedulerTaskRowType): void {
+    if (task.campaign_id === null) return;
+
+    this.campaignService.completeWhenSettled(task.campaign_id);
+  }
+
+  private publishFinished(
+    task: DBSchedulerTaskRowType,
+    status: SchedulerTaskStatusType,
+    error?: string,
+  ): void {
+    this.appEventBus.publish({
+      type: "task.finished",
+      taskId: task.id,
+      taskType: task.task_type,
+      campaignId: task.campaign_id,
+      status,
+      error,
+    });
   }
 
   /**
@@ -89,9 +150,11 @@ export class Scheduler {
         nextEligibleAt,
         errorMessage,
       );
+      this.publishFinished(task, "retry_wait", errorMessage);
       return;
     }
 
     this.schedulerTaskRepository.markFailed(task.id, errorMessage);
+    this.publishFinished(task, "failed", errorMessage);
   }
 }
