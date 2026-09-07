@@ -244,3 +244,18 @@ export function numberOrUndefined(value: unknown): number | undefined {
 export function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
+
+/**
+ * Turns free user input into a safe FTS5 MATCH expression.
+ *
+ * FTS5 treats its input as a query language, so unquoted user text raises
+ * syntax errors on characters as ordinary as a hyphen. Every token is
+ * quoted instead, which searches for the words themselves.
+ * @param searchText - Raw text typed by the user.
+ * @returns FTS5 MATCH expression matching all supplied words.
+ */
+export function buildFtsMatchQuery(searchText: string): string {
+  const tokens = searchText.match(/[\p{L}\p{N}]+/gu) ?? [];
+
+  return tokens.map((token) => `"${token}"`).join(" AND ");
+}

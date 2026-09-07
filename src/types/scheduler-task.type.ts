@@ -39,7 +39,13 @@ export type ResumeExtractTaskPayloadType = {
   resume_id: number;
 };
 
-export type CreateDiscoveryRunTaskInputType = DiscoveryRunTaskPayloadType;
+/** Campaign a task belongs to, when it was created by one. */
+export type CampaignScopedTaskInputType = {
+  campaignId?: number;
+};
+
+export type CreateDiscoveryRunTaskInputType = DiscoveryRunTaskPayloadType &
+  CampaignScopedTaskInputType;
 
 export type DBSchedulerTaskRowType = {
   id: number;
@@ -53,6 +59,8 @@ export type DBSchedulerTaskRowType = {
   started_at: string | null;
   completed_at: string | null;
   updated_at: string;
+  /** Null for tasks created outside a campaign, such as by a debug script. */
+  campaign_id: number | null;
 };
 
 export type FindSchedulerTaskByIdParamsType = {
@@ -91,10 +99,31 @@ export type MarkSchedulerTaskRetryWaitingParamsType = {
   updated_at: string;
 };
 
+export type MarkSchedulerTaskCancelledParamsType = {
+  id: number;
+  cancelled_status: SchedulerTaskStatusType;
+  completed_at: string;
+  updated_at: string;
+};
+
 export type MarkSchedulerTaskFailedParamsType = {
   id: number;
   failed_status: SchedulerTaskStatusType;
   last_error: string;
   completed_at: string;
   updated_at: string;
+};
+
+export type SchedulerTaskListParamsType = {
+  limit: number;
+  offset: number;
+  statuses?: SchedulerTaskStatusType[];
+  taskTypes?: SchedulerTaskType[];
+  campaignId?: number;
+};
+
+/** One row of a `GROUP BY status` count over scheduler tasks. */
+export type SchedulerTaskStatusCountRowType = {
+  status: SchedulerTaskStatusType;
+  total: number;
 };

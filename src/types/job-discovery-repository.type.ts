@@ -11,6 +11,8 @@ export type DBJobDiscoveryRowType = {
   position: number;
   is_promoted: number;
   discovered_at: string;
+  /** Campaign this observation was made under, when there was one. */
+  campaign_id: number | null;
 };
 
 /**
@@ -37,6 +39,7 @@ export type UpdateJobDiscoveryParamsType = JobDiscoveryIdentityType & {
   position: number;
   is_promoted: number;
   discovered_at: string;
+  campaign_id: number | null;
 };
 
 export type JobDiscoveryUpsertInputType = {
@@ -46,6 +49,7 @@ export type JobDiscoveryUpsertInputType = {
   pageNumber: number;
   position: number;
   isPromoted: boolean;
+  campaignId?: number;
 };
 
 export type JobDiscoveryUpsertResultType = {

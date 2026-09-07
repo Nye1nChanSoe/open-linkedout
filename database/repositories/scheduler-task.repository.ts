@@ -9,15 +9,27 @@ import type {
   FindSchedulerTaskByIdParamsType,
   InsertSchedulerTaskParamsType,
   JobDetailScrapeTaskPayloadType,
+  MarkSchedulerTaskCancelledParamsType,
   MarkSchedulerTaskCompletedParamsType,
   MarkSchedulerTaskFailedParamsType,
   MarkSchedulerTaskRetryWaitingParamsType,
   RecoverRunningTasksParamsType,
   ResumeExtractTaskPayloadType,
+  SchedulerTaskListParamsType,
+  SchedulerTaskStatusCountRowType,
   SchedulerTaskType,
 } from "@/types/scheduler-task.type.js";
 
 export class SchedulerTaskRepository {
+  /**
+   * Queue views are shaped by their filters, so their SQL cannot be
+   * prepared once in the constructor.
+   */
+  private readonly listStatementCache = new Map<
+    string,
+    BetterSqlite3.Statement
+  >();
+
   private readonly findByIdStatement: BetterSqlite3.Statement<
     [FindSchedulerTaskByIdParamsType],
     DBSchedulerTaskRowType
@@ -48,8 +60,13 @@ export class SchedulerTaskRepository {
     [MarkSchedulerTaskFailedParamsType]
   >;
 
+  private readonly markCancelledStatement: BetterSqlite3.Statement<
+    [MarkSchedulerTaskCancelledParamsType]
+  >;
+
   private readonly createJobDetailScrapeTasksTransaction: (
     jobIds: CanonicalJobIdType[],
+    campaignId?: number,
   ) => DBSchedulerTaskRowType[];
 
   constructor(private readonly database: DatabaseConnectionType) {
@@ -73,7 +90,8 @@ export class SchedulerTaskRepository {
         created_at,
         started_at,
         completed_at,
-        updated_at
+        updated_at,
+        campaign_id
       )
       VALUES (
         @task_type,
@@ -85,7 +103,8 @@ export class SchedulerTaskRepository {
         @created_at,
         @started_at,
         @completed_at,
-        @updated_at
+        @updated_at,
+        @campaign_id
       );
     `,
     );
@@ -165,9 +184,23 @@ export class SchedulerTaskRepository {
       `,
     );
 
+    this.markCancelledStatement = database.prepare(
+      `
+      UPDATE scheduler_tasks
+      SET
+        status = @cancelled_status,
+        next_eligible_at = NULL,
+        completed_at = @completed_at,
+        updated_at = @updated_at
+      WHERE id = @id;
+      `,
+    );
+
     this.createJobDetailScrapeTasksTransaction = database.transaction(
-      (jobIds: CanonicalJobIdType[]) =>
-        jobIds.map((jobId) => this.createJobDetailScrapeTask({ job_id: jobId })),
+      (jobIds: CanonicalJobIdType[], campaignId?: number) =>
+        jobIds.map((jobId) =>
+          this.createJobDetailScrapeTask({ job_id: jobId }, campaignId),
+        ),
     );
   }
 
@@ -185,13 +218,14 @@ export class SchedulerTaskRepository {
    * @param input - Search context and page limit for the discovery run.
    * @returns Newly created durable task.
    */
-  createDiscoveryRunTask(
-    input: CreateDiscoveryRunTaskInputType,
-  ) {
+  createDiscoveryRunTask(input: CreateDiscoveryRunTaskInputType) {
     const timestamp = new Date().toISOString();
+    // The campaign is a column, not payload: it is what cancellation and
+    // progress queries filter on.
+    const { campaignId, ...payload } = input;
     const task: InsertSchedulerTaskParamsType = {
       task_type: "discovery_run",
-      payload_json: JSON.stringify(input),
+      payload_json: JSON.stringify(payload),
       status: "pending",
       attempt_count: 0,
       next_eligible_at: null,
@@ -200,6 +234,7 @@ export class SchedulerTaskRepository {
       started_at: null,
       completed_at: null,
       updated_at: timestamp,
+      campaign_id: campaignId ?? null,
     };
 
     const result = this.insertTaskStatement.run(task);
@@ -214,6 +249,7 @@ export class SchedulerTaskRepository {
    */
   createJobDetailScrapeTask(
     input: JobDetailScrapeTaskPayloadType,
+    campaignId?: number,
   ) {
     const timestamp = new Date().toISOString();
     const task: InsertSchedulerTaskParamsType = {
@@ -227,6 +263,7 @@ export class SchedulerTaskRepository {
       started_at: null,
       completed_at: null,
       updated_at: timestamp,
+      campaign_id: campaignId ?? null,
     };
 
     const result = this.insertTaskStatement.run(task);
@@ -240,6 +277,7 @@ export class SchedulerTaskRepository {
    * @returns Newly created durable task.
    */
   createResumeExtractTask(input: ResumeExtractTaskPayloadType) {
+    const campaignId = undefined;
     const timestamp = new Date().toISOString();
     const task: InsertSchedulerTaskParamsType = {
       task_type: "resume_extract",
@@ -252,6 +290,7 @@ export class SchedulerTaskRepository {
       started_at: null,
       completed_at: null,
       updated_at: timestamp,
+      campaign_id: campaignId ?? null,
     };
 
     const result = this.insertTaskStatement.run(task);
@@ -262,12 +301,14 @@ export class SchedulerTaskRepository {
   /**
    * Creates pending job-detail scrape tasks in one transaction.
    * @param jobIds - Canonical jobs to scrape from LinkedIn detail pages.
+   * @param campaignId - Campaign the discovery run belonged to, if any.
    * @returns Newly created durable tasks in the supplied job order.
    */
   createJobDetailScrapeTasks(
     jobIds: CanonicalJobIdType[],
+    campaignId?: number,
   ) {
-    return this.createJobDetailScrapeTasksTransaction(jobIds);
+    return this.createJobDetailScrapeTasksTransaction(jobIds, campaignId);
   }
 
   /**
@@ -352,4 +393,144 @@ export class SchedulerTaskRepository {
       updated_at: timestamp,
     });
   }
+
+  /**
+   * Stops a task without running it again.
+   * @param id - Durable scheduler task identifier.
+   */
+  markCancelled(id: number): void {
+    const timestamp = new Date().toISOString();
+
+    this.markCancelledStatement.run({
+      id,
+      cancelled_status: "cancelled",
+      completed_at: timestamp,
+      updated_at: timestamp,
+    });
+  }
+
+  /**
+   * Cancels every task of a campaign that has not started yet.
+   *
+   * A task already claimed is left alone: it stops itself at its next
+   * cancellation check, which keeps its own row consistent.
+   * @param campaignId - Campaign whose queue should be emptied.
+   * @returns Number of cancelled tasks.
+   */
+  cancelPendingCampaignTasks(campaignId: number): number {
+    const timestamp = new Date().toISOString();
+
+    const statement = this.prepareCached(`
+      UPDATE scheduler_tasks
+      SET
+        status = @cancelled_status,
+        next_eligible_at = NULL,
+        completed_at = @completed_at,
+        updated_at = @updated_at
+      WHERE campaign_id = @campaign_id
+        AND status IN (@pending_status, @retry_wait_status);
+    `);
+
+    return statement.run({
+      campaign_id: campaignId,
+      cancelled_status: "cancelled",
+      pending_status: "pending",
+      retry_wait_status: "retry_wait",
+      completed_at: timestamp,
+      updated_at: timestamp,
+    }).changes;
+  }
+
+  /**
+   * Lists durable tasks for the queue view, newest first.
+   * @param params - Paging and optional status, type and campaign filters.
+   * @returns One page of durable tasks.
+   */
+  listByStatus(params: SchedulerTaskListParamsType): DBSchedulerTaskRowType[] {
+    const { whereSql, filterParams } = buildTaskFilters(params);
+
+    const statement = this.prepareCached(`
+      SELECT *
+      FROM scheduler_tasks
+      ${whereSql}
+      ORDER BY created_at DESC, id DESC
+      LIMIT @limit OFFSET @offset;
+    `);
+
+    return statement.all({
+      ...filterParams,
+      limit: params.limit,
+      offset: params.offset,
+    }) as DBSchedulerTaskRowType[];
+  }
+
+  /**
+   * Counts durable tasks grouped by status.
+   * @param filters - Optional type and campaign filters.
+   * @returns One count row per status present.
+   */
+  countByStatus(
+    filters: Omit<SchedulerTaskListParamsType, "limit" | "offset"> = {},
+  ): SchedulerTaskStatusCountRowType[] {
+    const { whereSql, filterParams } = buildTaskFilters(filters);
+
+    const statement = this.prepareCached(`
+      SELECT status, COUNT(*) AS total
+      FROM scheduler_tasks
+      ${whereSql}
+      GROUP BY status;
+    `);
+
+    return statement.all(filterParams) as SchedulerTaskStatusCountRowType[];
+  }
+
+  private prepareCached(sql: string): BetterSqlite3.Statement {
+    const cachedStatement = this.listStatementCache.get(sql);
+
+    if (cachedStatement) return cachedStatement;
+
+    const statement = this.database.prepare(sql);
+    this.listStatementCache.set(sql, statement);
+
+    return statement;
+  }
+}
+
+/**
+ * Translates queue filters into a WHERE clause and its named parameters.
+ * @param filters - Optional status, type and campaign filters.
+ * @returns SQL fragment and the parameters it binds.
+ */
+function buildTaskFilters(
+  filters: Omit<SchedulerTaskListParamsType, "limit" | "offset">,
+): {
+  whereSql: string;
+  filterParams: Record<string, string | number>;
+} {
+  const conditions: string[] = [];
+  const filterParams: Record<string, string | number> = {};
+
+  if (filters.statuses?.length) {
+    conditions.push(
+      "status IN (SELECT value FROM json_each(@statuses_json))",
+    );
+    filterParams.statuses_json = JSON.stringify(filters.statuses);
+  }
+
+  if (filters.taskTypes?.length) {
+    conditions.push(
+      "task_type IN (SELECT value FROM json_each(@task_types_json))",
+    );
+    filterParams.task_types_json = JSON.stringify(filters.taskTypes);
+  }
+
+  if (filters.campaignId !== undefined) {
+    conditions.push("campaign_id = @campaign_id");
+    filterParams.campaign_id = filters.campaignId;
+  }
+
+  return {
+    whereSql: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "",
+    filterParams,
+  };
 }

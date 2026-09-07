@@ -4,6 +4,7 @@ import type { DatabaseConnectionType } from "@/types/database.type.js";
 import type {
   DBJobDetailRowType,
   FindJobDetailByJobIdParamsType,
+  FindJobDetailsByJobIdsParamsType,
   InsertJobDetailParamsType,
   JobDetailUpsertInputType,
   UpdateJobDetailParamsType,
@@ -12,6 +13,11 @@ import type {
 export class JobDetailRepository {
   private readonly findByJobIdStatement: BetterSqlite3.Statement<
     [FindJobDetailByJobIdParamsType],
+    DBJobDetailRowType
+  >;
+
+  private readonly findManyByJobIdsStatement: BetterSqlite3.Statement<
+    [FindJobDetailsByJobIdsParamsType],
     DBJobDetailRowType
   >;
 
@@ -29,6 +35,14 @@ export class JobDetailRepository {
       SELECT *
       FROM job_details
       WHERE job_id = @job_id;
+    `,
+    );
+
+    this.findManyByJobIdsStatement = database.prepare(
+      `
+      SELECT *
+      FROM job_details
+      WHERE job_id IN (SELECT value FROM json_each(@job_ids_json));
     `,
     );
 
@@ -88,6 +102,19 @@ export class JobDetailRepository {
    */
   findByJobId(jobId: number) {
     return this.findByJobIdStatement.get({ job_id: jobId });
+  }
+
+  /**
+   * Finds the detail records for many canonical jobs at once.
+   * @param jobIds - Internal canonical job identifiers.
+   * @returns Detail records that exist, in no guaranteed order.
+   */
+  findManyByJobIds(jobIds: number[]) {
+    if (!jobIds.length) return [];
+
+    return this.findManyByJobIdsStatement.all({
+      job_ids_json: JSON.stringify(jobIds),
+    });
   }
 
   /**

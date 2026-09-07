@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pc from "picocolors";
 
 import config from "@/config/database.config.js";
@@ -88,4 +89,8 @@ function applyMigration(
   transaction();
 }
 
-runMigrations();
+// The application runs migrations on startup, so this file only migrates
+// on its own when it is the process that was started.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  runMigrations();
+}

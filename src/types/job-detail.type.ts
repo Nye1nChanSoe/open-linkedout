@@ -21,6 +21,11 @@ export type DBJobDetailRowType = {
   updated_at: string;
 };
 
+/** json_each over an id array keeps one prepared statement for any batch size. */
+export type FindJobDetailsByJobIdsParamsType = {
+  job_ids_json: string;
+};
+
 export type FindJobDetailByJobIdParamsType = {
   job_id: CanonicalJobIdType;
 };

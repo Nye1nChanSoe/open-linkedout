@@ -22,6 +22,8 @@ export class ResumeRepository {
     DBResumeRowType
   >;
 
+  private readonly listStatement: BetterSqlite3.Statement<[], DBResumeRowType>;
+
   private readonly insertResumeStatement: BetterSqlite3.Statement<
     [InsertResumeParamsType]
   >;
@@ -44,6 +46,14 @@ export class ResumeRepository {
       SELECT *
       FROM resumes
       WHERE content_hash = @content_hash;
+    `,
+    );
+
+    this.listStatement = database.prepare(
+      `
+      SELECT *
+      FROM resumes
+      ORDER BY created_at DESC;
     `,
     );
 
@@ -81,6 +91,14 @@ export class ResumeRepository {
     `,
     );
 
+  }
+
+  /**
+   * Lists every imported resume, newest first.
+   * @returns All resume rows.
+   */
+  list() {
+    return this.listStatement.all();
   }
 
   /**

@@ -58,7 +58,8 @@ export class JobDiscoveryRepository {
         page_number,
         position,
         is_promoted,
-        discovered_at
+        discovered_at,
+        campaign_id
       )
       VALUES (
         @job_id,
@@ -67,7 +68,8 @@ export class JobDiscoveryRepository {
         @page_number,
         @position,
         @is_promoted,
-        @discovered_at
+        @discovered_at,
+        @campaign_id
     );
       `,
     );
@@ -78,7 +80,8 @@ export class JobDiscoveryRepository {
       SET
         position = @position,
         is_promoted = @is_promoted,
-        discovered_at = @discovered_at
+        discovered_at = @discovered_at,
+        campaign_id = @campaign_id
       WHERE job_id = @job_id
         AND keyword = @keyword
         AND search_location = @search_location
@@ -131,6 +134,7 @@ export class JobDiscoveryRepository {
         position: input.position,
         is_promoted: Number(input.isPromoted),
         discovered_at: timestamp,
+        campaign_id: input.campaignId ?? null,
       });
 
       return {
@@ -144,6 +148,7 @@ export class JobDiscoveryRepository {
       position: input.position,
       is_promoted: Number(input.isPromoted),
       discovered_at: timestamp,
+      campaign_id: input.campaignId ?? null,
     });
 
     return {
