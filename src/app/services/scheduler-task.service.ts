@@ -51,13 +51,18 @@ export class SchedulerTaskService {
   /**
    * Creates pending job-detail scrape tasks in one transaction.
    * @param jobIds - Internal canonical job identifiers to scrape.
+   * @param campaignId - Campaign the discovery run belonged to, if any.
    * @returns Newly created durable scheduler tasks in the supplied job order.
    */
   batchCreateJobDetailScrapeTasks(
     jobIds: CanonicalJobIdType[],
+    campaignId?: number,
   ): DBSchedulerTaskRowType[] {
     try {
-      return this.schedulerTaskRepository.createJobDetailScrapeTasks(jobIds);
+      return this.schedulerTaskRepository.createJobDetailScrapeTasks(
+        jobIds,
+        campaignId,
+      );
     } catch (error) {
       const isDatabaseBusy = isDatabaseBusyError(error);
 

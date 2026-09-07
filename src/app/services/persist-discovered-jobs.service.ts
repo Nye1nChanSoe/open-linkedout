@@ -110,6 +110,7 @@ export class PersistDiscoveredJobsService {
         pageNumber: input.pageNumber,
         position: index + 1,
         isPromoted: scrapedJob.isPromoted,
+        campaignId: input.campaignId,
       });
 
       if (discoveryResult.wasInserted) {
