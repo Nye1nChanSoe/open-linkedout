@@ -18,6 +18,7 @@ import { assertAuthenticated } from "@/scraper/authentication.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
 import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";
+import { AppEventBus } from "@/app/events/app-event-bus.js";
 
 // TODO: THIS IS TEMPORARY SEARCH KEYWORDS
 const SEARCH_KEYWORD = "software engineer";
@@ -83,6 +84,7 @@ const orchestor = new ScrapeAndPersistOrchestratorService(
   persistJobService,
   retryPolicy,
   schedulerTaskService,
+  new AppEventBus(),
 );
 
 await orchestor.execute({

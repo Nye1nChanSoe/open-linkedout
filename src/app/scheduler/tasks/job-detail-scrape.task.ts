@@ -2,6 +2,7 @@ import { errors, type Page } from "playwright";
 import pc from "picocolors";
 
 import { ScrapingError } from "@/app/errors/scraping-error.js";
+import { AppEventBus } from "@/app/events/app-event-bus.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { PersistJobDetailService } from "@/app/services/persist-job-detail.service.js";
 import domEventConfig from "@/config/dom-event.config.js";
@@ -29,6 +30,7 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
     private readonly persistJobDetailService: PersistJobDetailService,
     private readonly page: Page,
     private readonly retryPolicy: RetryPolicy,
+    private readonly appEventBus: AppEventBus,
   ) {}
 
   /**
@@ -48,7 +50,7 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
     }
 
     await this.navigateToJobDetail(job.canonical_url);
-    await assertAuthenticated(this.page);
+    await assertAuthenticated(this.page, this.appEventBus);
 
     const jobDetailPage = new JobDetailPage(this.page);
     const applicationStatus = await this.classifyPage(jobDetailPage);
