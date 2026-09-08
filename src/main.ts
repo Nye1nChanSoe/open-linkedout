@@ -151,6 +151,9 @@ async function createDocumentScheduler(): Promise<Scheduler> {
   );
 }
 
+/**
+ *  SchedulerWorker takes (name, a_set_of_task_types, ...),
+ */
 const scrapeWorker = new SchedulerWorker(
   "Scrape worker",
   ["discovery_run", "job_detail_scrape"],

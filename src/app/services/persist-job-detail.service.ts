@@ -24,7 +24,9 @@ export class PersistJobDetailService {
         jobId: input.jobId,
         headerText: input.extractedJobDetail.headerText,
         descriptionText: input.extractedJobDetail.descriptionText,
+        descriptionHtml: input.extractedJobDetail.descriptionHtml,
         sourceUrl: input.extractedJobDetail.sourceUrl,
+        headerFacts: input.extractedJobDetail.headerFacts,
         linkedinShowMatchDetailsAiText:
           input.extractedJobDetail.linkedinShowMatchDetailsAiText,
         applicationStatus: input.extractedJobDetail.applicationStatus,

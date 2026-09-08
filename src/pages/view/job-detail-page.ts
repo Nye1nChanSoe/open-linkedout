@@ -10,6 +10,7 @@ import type { JobApplicationStatusType } from "@/types/job-detail.type.js";
  */
 export class JobDetailPage {
   readonly description: Locator;
+  readonly descriptionExpandButton: Locator;
   readonly unavailableMarker: Locator;
   readonly applyActions: Locator;
   readonly externalApplyLink: Locator;
@@ -18,6 +19,10 @@ export class JobDetailPage {
 
   constructor(private readonly page: Page) {
     this.description = page.locator(locator.aboutTheJob).first();
+
+    this.descriptionExpandButton = page
+      .locator(locator.descriptionExpandButton)
+      .first();
 
     this.unavailableMarker = page.locator(locator.unavailableMarker).first();
 
@@ -47,6 +52,19 @@ export class JobDetailPage {
     if (!(await this.description.isVisible())) return "unavailable";
 
     return (await this.applyActions.count()) > 0 ? "open" : "closed";
+  }
+
+  /**
+   * Expands the description when LinkedIn clamped it.
+   *
+   * The clamp is CSS, so the full text is already in the DOM and this only
+   * removes the trailing "… more" from the rendered text. A page without the
+   * control is the normal case, not a failure.
+   */
+  async expandDescription(): Promise<void> {
+    if ((await this.descriptionExpandButton.count()) === 0) return;
+
+    await this.descriptionExpandButton.click().catch(() => undefined);
   }
 
   /**

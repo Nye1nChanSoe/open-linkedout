@@ -1,4 +1,7 @@
-import type { JobApplicationStatusType } from "@/types/job-detail.type.js";
+import type {
+  JobApplicationStatusType,
+  JobHeaderFactsType,
+} from "@/types/job-detail.type.js";
 
 export type ScrapedJobType = {
   jobId: string;
@@ -59,9 +62,20 @@ export type ScrapedJobDetailType = {
   descriptionText: string;
 
   /**
+   * Description markup as LinkedIn rendered it
+   */
+  descriptionHtml: string | null;
+
+  /**
    * https://www.linkedin.com/jobs/view/<linkedin-jobid>
    */
   sourceUrl: string;
+
+  /**
+   * Workplace type, employment type and applicant count, read out of the
+   * header text. Absent only for a page with no header.
+   */
+  headerFacts?: JobHeaderFactsType;
 
   /**
    * After clicking "Show Match Detail"

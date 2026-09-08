@@ -44,6 +44,14 @@ export const detailLocatorConfig = {
   aboutTheJob: '[id^="JobDetails_AboutTheJob_"]',
 
   /**
+   * Note the sibling `expandable-text-box` is deliberately NOT used as the
+   * description anchor. LinkedIn nests <ul> inside the <p> that wraps it, and
+   * the HTML parser closes both on the first <ul> — the box ends up holding
+   * only the text before the first list.
+   */
+  descriptionExpandButton: '[data-testid="expandable-text-button"]',
+
+  /**
    * Header anchors, tried in order. LinkedIn has moved this block out of the
    * lazy-column root at least once, so no single anchor is assumed and a
    * page that matches none is captured rather than failed.

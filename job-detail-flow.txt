@@ -1,0 +1,70 @@
+JOB DETAIL FLOW
+===============
+
+POST /api/campaigns
+  -> CampaignService.createCampaign
+       -> campaigns row (status: running)
+       -> one discovery_run task per keyword x location
+
+SchedulerWorker ("Scrape worker", polls every 1s)
+  -> BrowserSession.getPage          (browser opens HERE, first scrape task only)
+  -> Scheduler.run                   (claim one task -> cancelled? -> dispatch)
+       -> DiscoveryRunTask
+            -> ScrapeAndPersistOrchestratorService   (loops search result pages)
+                 -> PersistDiscoveredJobsService     -> jobs + job_discoveries rows
+                 -> SchedulerTaskService             -> one job_detail_scrape task per job
+
+Scheduler.run  (claims each job_detail_scrape task)
+  -> JobDetailScrapeTask
+       -> page.goto(canonical_url)
+       -> assertAuthenticated                  -> event: linkedin.authentication_required
+       -> JobDetailPage.waitForContent         -> open | closed | unavailable
+            |
+            +-- not open -> PersistJobDetailService (status only, empty text) -> STOP
+            |
+            +-- open
+                 -> JobDetailPage.openMatchDetails
+                 -> extractJobDetailData        (src/pages/view/extractor.ts)
+
+
+EXTRACTOR
+---------
+extractJobDetailData
+  -> JobDetailPage.findHeader        -> header_text        (plain text)
+  -> JobDetailPage.expandDescription -> clicks "... more" if present
+  -> JobDetailPage.description       -> description_text   (innerText)
+                                     -> description_html   (innerHTML, stored RAW)
+  -> parseJobHeaderFacts(header_text)                (src/app/parsers/)
+       - workplace_type  | employment_type
+       - applicant_count | is_applicant_count_capped
+
+  NOTE: the description HTML is NOT parsed here. It is stored untouched so a
+        better parser can be re-run over it later without re-scraping.
+
+  OPEN QUESTION: parseJobHeaderFacts is called from the pages layer, which is
+        the one import pointing pages -> app. Moving the call up into
+        PersistJobDetailService would restore app -> pages.
+
+
+PERSIST
+-------
+PersistJobDetailService
+  -> JobDetailRepository.upsertJobDetail
+       -> job_details row
+            description_html = COALESCE(new, existing)   (a re-scrape never erases it)
+       -> FTS triggers -> job_details_fts   (header_text + description_text)
+
+
+-------------------------------------------------------------------------
+Later Another Task
+=> job_structure task enqueued after the detail is persisted (Later Impl)
+-------------------------------------------------------------------------
+job_structure [task]
+  -> JobStructureTask
+       -> job-detail-structure-parser  (src/app/parsers/, same file)
+            reads description_html
+            <ul>/<li>            -> bullet blocks
+            text before a <ul>   -> section heading
+            <br><br>             -> paragraph split
+            heading alias table  -> requirements | responsibilities | tech_stack | ...
+       -> job_structures row (structure_json + parser_version + source_hash)

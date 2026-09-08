@@ -70,6 +70,7 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
         extractedJobDetail: {
           headerText: "",
           descriptionText: "",
+          descriptionHtml: null,
           sourceUrl: jobDetailPage.currentUrl(),
           applicationStatus,
         },
@@ -98,6 +99,7 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
         try {
           await jobDetailPage.openMatchDetails();
 
+          // NOTE: extractor is called here - nyeinchan
           const extracted = await extractJobDetailData(jobDetailPage, "open");
 
           console.info(

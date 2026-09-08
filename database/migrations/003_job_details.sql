@@ -15,6 +15,11 @@ CREATE TABLE job_details (
     description_text TEXT NOT NULL,
 
     /**
+     * Description markup exactly as LinkedIn rendered it.
+     */
+    description_html TEXT,
+
+    /**
      * Exact LinkedIn detail-page URL used for this fetch.
      */
     source_url TEXT NOT NULL,
@@ -39,6 +44,30 @@ CREATE TABLE job_details (
                 'closed', 'unavailable'
             )
         ),
+
+    /**
+     * Header chips the search results never carry. NULL is "not stated on this page"
+     * NOT a failed scrape.
+     */
+    workplace_type TEXT
+        CHECK (workplace_type IN ('on_site', 'remote', 'hybrid')),
+
+    employment_type TEXT
+        CHECK (
+            employment_type IN (
+                'full_time', 'part_time', 'contract',
+                'temporary', 'internship', 'volunteer', 'other'
+            )
+        ),
+
+    applicant_count INTEGER CHECK (applicant_count >= 0),
+
+    /**
+     * LinkedIn stops counting out loud at "Over 100 applicants", so the
+     * count above is a floor rather than a measurement whenever this is 1.
+     */
+    is_applicant_count_capped INTEGER NOT NULL DEFAULT 0
+        CHECK (is_applicant_count_capped IN (0, 1)),
 
     /**
      * Time this detail page was last fetched successfully

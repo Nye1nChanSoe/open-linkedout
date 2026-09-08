@@ -52,10 +52,15 @@ export class JobDetailRepository {
         job_id,
         header_text,
         description_text,
+        description_html,
         source_url,
         external_apply_url,
         linkedin_show_match_details_ai_text,
         application_status,
+        workplace_type,
+        employment_type,
+        applicant_count,
+        is_applicant_count_capped,
         fetched_at,
         next_refresh_at,
         created_at,
@@ -65,10 +70,15 @@ export class JobDetailRepository {
         @job_id,
         @header_text,
         @description_text,
+        @description_html,
         @source_url,
         @external_apply_url,
         @linkedin_show_match_details_ai_text,
         @application_status,
+        @workplace_type,
+        @employment_type,
+        @applicant_count,
+        @is_applicant_count_capped,
         @fetched_at,
         @next_refresh_at,
         @created_at,
@@ -83,10 +93,16 @@ export class JobDetailRepository {
       SET
         header_text = @header_text,
         description_text = @description_text,
+        /* A re-scrape that read no markup must not erase markup already held. */
+        description_html = COALESCE(@description_html, description_html),
         source_url = @source_url,
         external_apply_url = @external_apply_url,
         linkedin_show_match_details_ai_text = @linkedin_show_match_details_ai_text,
         application_status = @application_status,
+        workplace_type = @workplace_type,
+        employment_type = @employment_type,
+        applicant_count = @applicant_count,
+        is_applicant_count_capped = @is_applicant_count_capped,
         fetched_at = @fetched_at,
         next_refresh_at = @next_refresh_at,
         updated_at = @updated_at
@@ -130,16 +146,26 @@ export class JobDetailRepository {
     const externalApplyUrl = input.externalApplyUrl ?? null;
     const linkedinShowMatchDetailsAiText =
       input.linkedinShowMatchDetailsAiText ?? null;
+    const descriptionHtml = input.descriptionHtml ?? null;
+    const headerFacts = input.headerFacts;
+    const headerFactColumns = {
+      workplace_type: headerFacts?.workplaceType ?? null,
+      employment_type: headerFacts?.employmentType ?? null,
+      applicant_count: headerFacts?.applicantCount ?? null,
+      is_applicant_count_capped: headerFacts?.isApplicantCountCapped ? 1 : 0,
+    };
 
     if (existingJobDetail) {
       this.updateJobDetailStatement.run({
         job_id: existingJobDetail.job_id,
         header_text: input.headerText,
         description_text: input.descriptionText,
+        description_html: descriptionHtml,
         source_url: input.sourceUrl,
         external_apply_url: externalApplyUrl,
         linkedin_show_match_details_ai_text: linkedinShowMatchDetailsAiText,
         application_status: applicationStatus,
+        ...headerFactColumns,
         fetched_at: timestamp,
         next_refresh_at: nextRefreshAt,
         updated_at: timestamp,
@@ -155,10 +181,12 @@ export class JobDetailRepository {
       job_id: input.jobId,
       header_text: input.headerText,
       description_text: input.descriptionText,
+      description_html: descriptionHtml,
       source_url: input.sourceUrl,
       external_apply_url: externalApplyUrl,
       linkedin_show_match_details_ai_text: linkedinShowMatchDetailsAiText,
       application_status: applicationStatus,
+      ...headerFactColumns,
       fetched_at: timestamp,
       next_refresh_at: nextRefreshAt,
       created_at: timestamp,
