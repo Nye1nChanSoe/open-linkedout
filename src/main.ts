@@ -76,6 +76,7 @@ const dependencies: ServerDependenciesType = {
  * Everything here needs a page, so calling this is what opens the browser.
  * The worker only calls it once a scrape task is actually queued.
  * @returns Scheduler for the two LinkedIn task types.
+ * TODO: move to factory
  */
 async function createScrapeScheduler(): Promise<Scheduler> {
   const page = await browserSession.getPage();
@@ -120,6 +121,7 @@ async function createScrapeScheduler(): Promise<Scheduler> {
 /**
  * Builds the document scheduler. No browser is involved.
  * @returns Scheduler for resume extraction.
+ * TODO: move to factory
  */
 async function createDocumentScheduler(): Promise<Scheduler> {
   const resumeExtractor = new RestructRunner();
@@ -151,20 +153,19 @@ async function createDocumentScheduler(): Promise<Scheduler> {
   );
 }
 
-/**
- *  SchedulerWorker takes (name, a_set_of_task_types, ...),
- */
 const scrapeWorker = new SchedulerWorker(
   "Scrape worker",
-  ["discovery_run", "job_detail_scrape"],
+  ["discovery_run", "job_detail_scrape"], // tasks this worker takes
   schedulerTaskRepository,
   createScrapeScheduler,
   serverConfig.WORKER_IDLE_POLL_INTERVAL_MS,
+  // check stale, create new scheduler if it is.
+  () => browserSession.isOpen() && !browserSession.isAlive(),
 );
 
 const documentWorker = new SchedulerWorker(
   "Document worker",
-  ["resume_extract"],
+  ["resume_extract"], // tasks this worker takes
   schedulerTaskRepository,
   createDocumentScheduler,
   serverConfig.WORKER_IDLE_POLL_INTERVAL_MS,

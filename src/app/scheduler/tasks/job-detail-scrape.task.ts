@@ -9,7 +9,7 @@ import domEventConfig from "@/config/dom-event.config.js";
 import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.js";
 import { extractJobDetailData } from "@/pages/view/extractor.js";
 import { JobDetailPage } from "@/pages/view/job-detail-page.js";
-import { assertAuthenticated } from "@/scraper/authentication.js";
+import { assertAuthenticated } from "@/app/browser/authentication.js";
 import type { JobApplicationStatusType } from "@/types/job-detail.type.js";
 import type { ScrapedJobDetailType } from "@/types/scraped-job.type.js";
 import type {

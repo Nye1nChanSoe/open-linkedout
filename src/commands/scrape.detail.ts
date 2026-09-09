@@ -14,7 +14,7 @@ import { JobDetailRepository } from "@database/repositories/job-detail.repositor
 import { JobRepository } from "@database/repositories/job.repository.js";
 import { extractJobDetailData } from "@/pages/view/extractor.js";
 import { JobDetailPage } from "@/pages/view/job-detail-page.js";
-import { assertAuthenticated } from "./authentication.js";
+import { assertAuthenticated } from "@/app/browser/authentication.js";
 
 // Troublesome LinkedIn job: it has since closed, which is what broke the
 // header filter. Kept as the fixture for the closed-job path.

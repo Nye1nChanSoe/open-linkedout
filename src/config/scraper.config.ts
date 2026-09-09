@@ -11,13 +11,32 @@ const config = {
    */
   IS_HEADLESS: false,
 
-  /** Maximum time allowed for manual LinkedIn authentication. */
+  /**
+   * Maximum time allowed for manual LinkedIn authentication: 10m.
+   */
   MANUAL_AUTH_TIMEOUT_MS: 10 * 60 * 1000,
 
-  /** Time allowed for a delayed LinkedIn authentication redirect. */
+  /**
+   * Time allowed for a delayed LinkedIn authentication redirect: 5s.
+   */
   AUTH_REDIRECT_GRACE_MS: 5_000,
 
-  /** Number of results shown on each LinkedIn search page. */
+  /**
+   * Playwright's browser closed messages
+   */
+  BROWSER_CLOSED_MESSAGES: [
+    "target page, context or browser has been closed",
+    "target closed",
+    "browser has been closed",
+    "browser closed",
+    "page has been closed",
+    "context has been closed",
+    "browser has disconnected",
+  ],
+
+  /**
+   * Number of results shown on each LinkedIn search page.
+   */
   LINKEDIN_RESULTS_PER_PAGE: 25,
 
   /**

@@ -6,6 +6,7 @@ export type ApplicationErrorCodeType =
   | "NETWORK_ERROR"
   | "SCRAPE_TIMEOUT"
   | "BROWSER_ERROR"
+  | "BROWSER_CLOSED"
   | "AUTHENTICATION_ERROR"
   | "DATABASE_BUSY"
   | "DATABASE_ERROR"
@@ -24,6 +25,13 @@ export type ApplicationErrorCodeType =
 // BROWSER_ERROR      temporary Playwright/browser failure
 // DATABASE_BUSY      SQLite is temporarily locked
 // EXTRACTION_OUTPUT_ERROR   The extractor could not write its result
+
+// Retryable, but NOT in place
+// -----------------------------
+// BROWSER_CLOSED     the browser or its page died. Retrying the operation
+//                    cannot help: the page is gone and RetryPolicy cannot
+//                    launch a new one. It has to reach the worker, which
+//                    rebuilds the scheduler, before the task is retried.
 
 // Normally non-retryable
 // ----------------------

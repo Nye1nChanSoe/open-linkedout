@@ -1,12 +1,20 @@
 import pc from "picocolors";
 import { ApplicationError } from "@/app/errors/application-error.js";
 import retryConfig from "@/config/retry.config.js";
+import type { ApplicationErrorCodeType } from "@/types/error-categories.type.js";
 import type {
   RetryContextType,
   RetryPolicyOptionsType,
 } from "@/types/retry.type.js";
 import { formatDuration, formatRetryContext, sleep } from "@/utils/utils.js";
 import { calculateExponentialBackoffDelay } from "./exponential-backoff.js";
+
+/**
+ * Codes that are retryable, but not by repeating the operation
+ */
+const NOT_RETRYABLE_IN_PLACE = new Set<ApplicationErrorCodeType>([
+  "BROWSER_CLOSED",
+]);
 
 export class RetryPolicy {
   /**
@@ -40,6 +48,8 @@ export class RetryPolicy {
         if (!(error instanceof ApplicationError) || !error.retryable) {
           throw error;
         }
+
+        if (NOT_RETRYABLE_IN_PLACE.has(error.code)) throw error;
 
         retryAttempt++;
 

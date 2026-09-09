@@ -21,6 +21,7 @@ export class SchedulerWorker {
     private readonly schedulerTaskRepository: SchedulerTaskRepository,
     private readonly createScheduler: () => Promise<Scheduler>,
     private readonly idlePollIntervalMs: number,
+    private readonly isSchedulerStale: () => boolean = () => false,
   ) {}
 
   /**
@@ -46,9 +47,13 @@ export class SchedulerWorker {
         continue;
       }
 
-      const scheduler = (this.scheduler ??= await this.createScheduler());
+      const scheduler = await this.getScheduler();
 
-      while (!this.isStopping && (await scheduler.run())) {}
+      while (
+        !this.isStopping &&
+        !this.isSchedulerStale() &&
+        (await scheduler.run())
+      ) {}
 
       // Retry-waiting tasks are queued but not yet eligible.
       await sleep(this.idlePollIntervalMs);
@@ -61,6 +66,20 @@ export class SchedulerWorker {
    */
   stop(): void {
     this.isStopping = true;
+  }
+
+  /**
+   * Returns the scheduler, rebuilding it when the last one went stale.
+   * @returns Scheduler for this worker's task types.
+   */
+  private async getScheduler(): Promise<Scheduler> {
+    if (this.scheduler && this.isSchedulerStale()) {
+      console.warn(pc.yellow(`${this.name}: rebuilding, its browser is gone`));
+
+      this.scheduler = undefined;
+    }
+
+    return (this.scheduler ??= await this.createScheduler());
   }
 
   private hasQueuedWork(): boolean {

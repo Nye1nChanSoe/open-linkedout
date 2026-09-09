@@ -1,9 +1,11 @@
 import path from "node:path";
 import pc from "picocolors";
 import { errors, type Page } from "playwright";
+import { ApplicationError } from "@/app/errors/application-error.js";
 import { PersistenceError } from "@/app/errors/persistence-error.js";
 import { ScrapingError } from "@/app/errors/scraping-error.js";
 import domeventConfig from "@/config/dom-event.config.js";
+import scraperConfig from "@/config/scraper.config.js";
 import type { RetryContextType } from "@/types/retry.type.js";
 
 /**
@@ -204,9 +206,19 @@ export function toScrapingError(error: unknown): ScrapingError {
     );
   }
 
+  // Retryable, but only once the worker has relaunched the browser.
+  if (isBrowserClosedError(error)) {
+    return new ScrapingError(
+      "The browser closed while scraping the LinkedIn page.",
+      "BROWSER_CLOSED",
+      true,
+      error,
+    );
+  }
+
   return new ScrapingError(
     "Failed while scraping the LinkedIn results page.",
-    "BROWSER_ERROR",
+    "UNKNOWN_ERROR",
     false,
     error,
   );
@@ -218,6 +230,52 @@ export function toScrapingError(error: unknown): ScrapingError {
  */
 function isNetworkError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("net::ERR_");
+}
+
+/**
+ * Whether the browser or its page died underneath the operation.
+ * @param error - Original Playwright error.
+ * @returns Whether the browser is gone.
+ */
+function isBrowserClosedError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  const message = error.message.toLowerCase();
+
+  return scraperConfig.BROWSER_CLOSED_MESSAGES.some((needle) =>
+    message.includes(needle),
+  );
+}
+
+/**
+ * Describes an error for the `last_error` column.
+ *
+ * The classified message alone says nothing about what actually happened —
+ * every browser-death row read "Failed while scraping the LinkedIn results
+ * page." — so the underlying cause is carried with it.
+ * @param error - Error to describe.
+ * @returns Single-line description, cause included when there is one.
+ */
+export function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return String(error);
+
+  const cause = error instanceof ApplicationError ? error.cause : undefined;
+
+  if (cause === undefined) return error.message;
+
+  const causeMessage = cause instanceof Error ? cause.message : String(cause);
+
+  return `${error.message} | cause: ${firstLine(causeMessage)}`;
+}
+
+/**
+ * @param text - Possibly multi-line text.
+ * @returns Its first line, shortened to stay readable in a log or a column.
+ */
+function firstLine(text: string): string {
+  const line = text.split("\n")[0].trim();
+
+  return line.length > 200 ? `${line.slice(0, 197)}...` : line;
 }
 
 /**

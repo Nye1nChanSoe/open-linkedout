@@ -14,7 +14,7 @@ import { createDatabaseConnection } from "@database/connection.js";
 import { JobRepository } from "@database/repositories/job.repository.js";
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
 import { ScrapeAndPersistOrchestratorService } from "@/app/services/scrape-and-persist-orchestrator.service.js";
-import { assertAuthenticated } from "@/scraper/authentication.js";
+import { assertAuthenticated } from "@/app/browser/authentication.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
 import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";

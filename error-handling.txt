@@ -29,15 +29,56 @@ SCRAPE_TIMEOUT
 temporary BROWSER_ERROR
 DATABASE_BUSY
 
+Retryable, but NOT here
+-----------------------
+BROWSER_CLOSED            browser or page died. retrying the same call cannot
+                          help, the page is gone and RetryPolicy cannot launch
+                          a new one. it must escape to SchedulerWorker, which
+                          rebuilds the scheduler, then the task retries.
+
 Non-retryable
 -------------
 AUTHENTICATION_ERROR
 INVALID_SCRAPED_DATA
 DATABASE_ERROR            caused by schema mismatch
-UNKNOWN_ERROR             by default
+UNKNOWN_ERROR             by default, anything unrecognised
 
 
 
 Retryable Boundries:
 initial page.goto()
+
+
+
+BROWSER_CLOSED path
+-------------------
+page.goto()
+    v throws "Target page, context or browser has been closed"
+
+toScrapingError
+    v BROWSER_CLOSED, retryable
+
+RetryPolicy
+    v NOT_RETRYABLE_IN_PLACE, rethrows at once. does not burn the 1h window
+
+Scheduler
+    v markRetryWaiting, NOT markFailed
+
+SchedulerWorker
+    v isSchedulerStale() -> stop draining, drop the scheduler, rebuild
+
+BrowserSession.getPage()
+    v dead page discarded, chromium relaunched, task retries on a live page
+
+WHY: the scheduler and its tasks captured one Page at construction.
+a dead browser cannot be healed underneath them. only a rebuild works.
+without this, one dead browser marked 65 queued tasks failed in 56ms.
+
+
+
+last_error
+----------
+persist the cause, not only the wrapper message.
+describeError() appends it, otherwise every row reads the same line
+and says nothing about what actually broke.
 

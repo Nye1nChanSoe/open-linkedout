@@ -3,6 +3,7 @@ import { ApplicationError } from "@/app/errors/application-error.js";
 import { AppEventBus } from "@/app/events/app-event-bus.js";
 import { CampaignService } from "@/app/services/campaign.service.js";
 import { calculateExponentialBackoffDelay } from "@/app/retry/exponential-backoff.js";
+import { describeError } from "@/utils/utils.js";
 import retryConfig from "@/config/retry.config.js";
 import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.js";
 import type {
@@ -142,7 +143,8 @@ export class Scheduler {
    * @param error - Task execution failure.
    */
   private handleTaskError(task: DBSchedulerTaskRowType, error: unknown): void {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    // The classified message alone hides what happened; the cause goes with it.
+    const errorMessage = describeError(error);
 
     if (error instanceof ApplicationError && error.retryable) {
       const delayMs = calculateExponentialBackoffDelay(

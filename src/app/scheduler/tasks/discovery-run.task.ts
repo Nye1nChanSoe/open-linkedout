@@ -5,7 +5,7 @@ import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import scraperConfig from "@/config/scraper.config.js";
 import domEventConfig from "@/config/dom-event.config.js";
 import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.js";
-import { assertAuthenticated } from "@/scraper/authentication.js";
+import { assertAuthenticated } from "@/app/browser/authentication.js";
 import type {
   DBSchedulerTaskRowType,
   DiscoveryRunTaskPayloadType,

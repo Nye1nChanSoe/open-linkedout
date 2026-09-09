@@ -5,9 +5,6 @@ import { debugDOMLogs } from "@/utils/utils.js";
 
 /**
  * Owns the one persistent Chromium context the scraper works in.
- *
- * The context is launched on first use, never at startup: document work
- * runs in the same process and must not pay for a browser it never opens.
  */
 export class BrowserSession {
   private context?: BrowserContext;
@@ -19,7 +16,10 @@ export class BrowserSession {
    * @returns Active LinkedIn page.
    */
   async getPage(): Promise<Page> {
-    if (this.page) return this.page;
+    // alive -> return the page
+    if (this.isAlive()) return this.page!;
+    // dead -> discard and then relaunch
+    if (this.page) this.discard();
 
     // Concurrent callers must not launch two browsers against the same
     // persistent profile directory.
@@ -28,17 +28,41 @@ export class BrowserSession {
     return this.launch;
   }
 
-  /** Whether a browser is currently open. */
+  /**
+   * Whether the open browser can still be driven.
+   * - do i have a page?
+   * - does this page still open?
+   * - does the browser belongs to the page still connected?
+   * @returns Whether a usable page is open.
+   */
+  isAlive(): boolean {
+    if (!this.page || this.page.isClosed()) return false;
+
+    return this.context?.browser()?.isConnected() ?? true;
+  }
+
+  /**
+   * Whether a BrowserSession instance still exists in node side.
+   * call discard() to clear
+   */
   isOpen(): boolean {
     return this.context !== undefined;
   }
 
   /**
    * Closes the browser if one was opened.
+   * Physically shuts the Chromium down.
    */
   async close(): Promise<void> {
-    await this.context?.close();
+    await this.context?.close().catch(() => undefined);
 
+    this.discard();
+  }
+
+  /**
+   * Forgets a browser that is already gone, so the next `getPage` relaunches.
+   */
+  private discard(): void {
     this.context = undefined;
     this.page = undefined;
     this.launch = undefined;
