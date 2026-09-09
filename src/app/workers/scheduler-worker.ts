@@ -55,7 +55,10 @@ export class SchedulerWorker {
     }
   }
 
-  /** Stops the loop after the task in flight finishes. */
+  /**
+   * Stops the loop after the task in flight finishes.
+   * task_in_flight: Task the Scheduler has already claimed and is currently executing
+   */
   stop(): void {
     this.isStopping = true;
   }

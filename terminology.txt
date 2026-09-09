@@ -1,0 +1,177 @@
+1. Job Detail Page Structure and Terms I used here
+--------------------------------------------------
+
+  LinkedIn /jobs/view/:id
+  |
+  +-- [data-testid="job-details-header"]                <- "the header"
+  |       Jitta
+  |       Software Engineer, Investment Algorithms
+  |       Bangkok - 1 week ago - Over 100 applicants
+  |       Hybrid
+  |       Full-time
+  |       Apply   Save
+  |
+  +-- [id^="JobDetails_AboutTheJob_"]                  <- "the description slot"
+          <h2>About the job</h2>                       <- LinkedIn's label for the slot
+          <span data-testid="expandable-text-box">     <- the employer's actual ad
+             SUMMARY ...
+             JOB AREAS ...
+             KEY RESPONSIBILITIES ...
+          ... more                                     <- the expand control (but don't need to click)
+          Benefits found in job post                   <- a LinkedIn-generated panel
+
+
+2. Column Mapping
+------------------
+
+  header_text            the header block, as visible text
+  workplace_type         parsed OUT OF header_text
+  employment_type        parsed OUT OF header_text
+  applicant_count        parsed OUT OF header_text
+
+  description_text       the description slot, as visible text
+  description_html       the description slot, as markup
+
+
+Our parser ignores the useless text blocks with 
+IGNORED_BLOCK_TEXTS
+IGNORED_HEADINGS
+
+
+"Job description" means two different things depending on the level:
+
+  (a) THE WHOLE SLOT
+    description_text / description_html. Everything under "About the job".
+  (b) A SECTION INSIDE IT
+    12 of the 91 corpus jobs open their ad with a heading
+    that literally reads "Job Description", alongside
+    "Role Overview" and "Job Summary". The parser maps all
+    of those to sectionType "overview".
+
+So (b) lives inside (a). A section never comes from the header.
+
+
+----------------------------------------------------------------------------------------------------
+Example : Parsed Heading + Job Description : JOB 7 : https://www.linkedin.com/jobs/view/4458362805/
+----------------------------------------------------------------------------------------------------
+
+`header_text` from the gig:
+
+    Jitta
+    Software Engineer, Investment Algorithms
+    Bangkok, Bangkok City, Thailand · 1 week ago · Over 100 people clicked apply
+    Promoted by hirer · Responses managed off LinkedIn
+
+    Hybrid | Full-time
+    Apply  | Save
+
+
+what the header parser `parseJobHeaderFacts` pulled out of it
+
+    workplace_type            hybrid
+    employment_type           full_time
+    applicant_count           100
+    is_applicant_count_capped 1   (1 = LinkedIn said "Over 100")
+
+    Note these came from TEXT, not from the markup. The chips are bare <a>
+    tags with no distinguishing attribute, but they always land on their own
+    line, so whole-line matching is more robust than a locator.
+
+
+`description_text` - the first 18 lines as stored
+
+    About the job
+    SUMMARY
+    Software Engineer focused on developing data-driven investment algo...
+    In this role, you will work at the intersection of investing, data,...
+    We seek someone curious about financial markets, who enjoys working...
+    JOB AREAS
+    You will work closely with the investment and data teams to design,...
+    Researching and developing systematic strategies using fundamental ...
+    Gathering and analyzing financial data to discover investment signals
+    Building systems that enable algorithm development and large-scale ...
+    Designing internal tools that allow teams to explore and analyze fi...
+    Evaluating investment strategies through rigorous simulation and da...
+    KEY RESPONSIBILITIES
+    Develop and improve algorithmic investment strategies using financi...
+    Design and build systems that support research, simulation, and bac...
+    Build automated data pipelines to collect, process, and manage fina...
+    Ensure data quality, consistency, and reliability across the entire...
+    Develop services and tools that enable teams to analyze and utilize...
+
+    Line 1 is "About the job" - LinkedIn's label, not the employer's writing.
+    SUMMARY and JOB AREAS are headings, but nothing here says so: innerText
+    gives the same flat lines for a heading, a paragraph and a bullet.
+
+
+`description_html` - the same content but we have structure information for
+the downstream parser [task]:
+
+    <h2>
+    </div>
+    <p>
+    <span tabindex="-1"...
+
+    <strong>SUMMARY</strong>
+    <p>Software Engineer focused on developing data-driven investment a...
+    <p>In this role, you will work at the intersection of investing, da...
+    <p>We seek someone curious about financial markets, who enjoys work...
+
+    <strong>JOB AREAS</strong>
+    <p>You will work closely with the investment and data teams to desi...
+    <ul>
+      <li>Researching and developing systematic strategies using fundamen...
+      <li>Gathering and analyzing financial data to discover investment s...
+      <li>Building systems that enable algorithm development and large-sc...
+      <li>Designing internal tools that allow teams to explore and analyz...
+      <li>Evaluating investment strategies through rigorous simulation an...
+    </ul>
+
+    <strong>KEY RESPONSIBILITIES</strong>
+
+
+    -- html tags marker breakdowns in my parser logic:
+    <strong>    marks the headings
+    <p>         the paragraphs
+    <li>        the bullets
+
+
+what `parseJobStructure` makes of it (DEVELOP iteratively to make it better)
+more job description corupus = better parser pattern I have :)
+
+    [overview] SUMMARY
+        5 paragraphs, 5 bullets
+          Software Engineer focused on developing data-driven investm...
+          In this role, you will work at the intersection of investin...
+          ... 8 more blocks
+
+    [responsibilities] KEY RESPONSIBILITIES
+        0 paragraphs, 6 bullets
+        - Develop and improve algorithmic investment strategies using...
+        - Design and build systems that support research, simulation,...
+          ... 4 more blocks
+
+    [requirements] REQUIRED QUALIFICATIONS
+        0 paragraphs, 7 bullets
+        - 3–5 years of experience in software engineering or related ...
+        - Strong interest in investing and long-term wealth building
+          ... 5 more blocks
+
+    [requirements] EXTRA POINTS
+        0 paragraphs, 4 bullets
+        - Personal experience investing in stocks or other assets
+        - Knowledge of financial statements or investment analysis
+          ... 2 more blocks
+
+    [benefits] BENEFITS AND PERKS
+        0 paragraphs, 12 bullets
+        - Work from Anywhere
+        - Unlimited Vacations
+          ... 10 more blocks
+
+    [benefits] Benefits found in job post
+        1 paragraphs, 0 bullets
+          Medical insurance
+
+    Every one of those sections is INSIDE description_html.
+    None of them came from the header.

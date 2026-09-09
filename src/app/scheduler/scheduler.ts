@@ -12,7 +12,13 @@ import type {
 } from "@/types/scheduler-task.type.js";
 
 /**
- * Claims durable tasks and dispatches them to their matching task executors.
+ * Actually the naming is kinda misleading:
+ *  - this should be the TaskDispatcher or TaskRunner
+ *  - this class only knows about managing tasks (which tasks goes to which executor)
+ *  - then mark it completed/retry/failed and check campaign settlement
+ *
+ * SchedulerWorker: is the long-running loop around the Scheduler
+ * it keeps polling for queued work and repeatedly calls scheduler.run()
  */
 export class Scheduler {
   private readonly taskTypes: SchedulerTaskType[];
