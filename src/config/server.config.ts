@@ -6,7 +6,7 @@ const config = {
    */
   HOST: "127.0.0.1",
 
-  PORT: 3000,
+  PORT: Number(process.env.LINKEDOUT_TEST_PORT ?? 3000),
 
   /**
    * Built React application served by the API process.
@@ -29,7 +29,7 @@ const config = {
   /**
    * How long a worker waits before looking for queued tasks again.
    */
-  WORKER_IDLE_POLL_INTERVAL_MS: 1_000,
+  WORKER_IDLE_POLL_INTERVAL_MS: 1_500,
 } as const;
 
 export default config;

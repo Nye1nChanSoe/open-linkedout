@@ -184,16 +184,20 @@ console.info(
   pc.cyan(`http://${serverConfig.HOST}:${serverConfig.PORT}`),
 );
 
+// Kept so shutdown can wait for the loops to leave their task_in_flight.
+const workers = Promise.all([scrapeWorker.start(), documentWorker.start()]);
+
 let isShuttingDown = false;
 
 /**
  * Stops the workers, the browser and the server once.
+ * @param signal - Signal that asked the process to stop.
  */
-async function shutdown(): Promise<void> {
+async function shutdown(signal: NodeJS.Signals): Promise<void> {
   if (isShuttingDown) return;
 
   isShuttingDown = true;
-  console.info(pc.yellow("\nShutting down..."));
+  console.info(pc.yellow(`\nShutting down on ${signal}...`));
 
   scrapeWorker.stop();
   documentWorker.stop();
@@ -205,7 +209,8 @@ async function shutdown(): Promise<void> {
   process.exit(0);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+  process.on(signal, () => void shutdown(signal));
+}
 
-await Promise.all([scrapeWorker.start(), documentWorker.start()]);
+await workers;

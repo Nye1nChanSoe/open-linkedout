@@ -8,6 +8,24 @@ import { debugDOMLogs } from "@/utils/utils.js";
 
 /**
  * Owns the one persistent Chromium context the scraper works in.
+ *
+ * How this process finds out it should stop, and what each way does:
+ *
+ *   Ctrl+C in the terminal      SIGINT    shutdown() runs, browser closed
+ *   kill <pid>                  SIGTERM   shutdown() runs, browser closed
+ *   closing the terminal window SIGHUP    shutdown() runs, browser closed
+ *   kill -9 <pid>               SIGKILL   uncatchable. nothing runs, the
+ *                                         browser is orphaned and keeps the
+ *                                         profile lock. recoverRunningTasks()
+ *                                         on the next start cleans the queue,
+ *                                         the zombie needs pkill
+ *   closing the Chromium window  none     NOT a signal. Chromium cannot tell
+ *                                         this process anything, so nothing
+ *                                         happens until isAlive() is asked.
+ *                                         the app keeps running and scraping
+ *                                         pauses
+ *
+ * Signals are handled in src/main.ts. The last row is handled here.
  */
 export class BrowserSession {
   private context?: BrowserContext;
