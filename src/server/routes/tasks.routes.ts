@@ -19,6 +19,7 @@ const TASK_STATUSES: SchedulerTaskStatusType[] = [
 const TASK_TYPES: SchedulerTaskType[] = [
   "discovery_run",
   "job_detail_scrape",
+  "job_structure",
   "resume_extract",
 ];
 

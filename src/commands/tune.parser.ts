@@ -53,6 +53,19 @@ for (const [index, row] of rows.entries()) {
 
 console.log("\nsections by type:", typeCounts);
 console.log(`jobs with no heading found: ${noHeadingCount} / ${rows.length}`);
+
+/**
+ * This list never empties, and that is not a bug.
+ *
+ * Heading wordings follow a Zipf distribution: a few repeat often, then a
+ * long flat tail of wordings used by exactly one company. Scraping more jobs
+ * does not turn those into repeats — it adds new ones at about the same rate.
+ *
+ * So only the top of the list is worth adding to the alias table. Anything
+ * appearing once is the tail, and the tail is what Phase 2's embeddings are
+ * for: they can place "AI / Agent Engineering" near responsibilities without
+ * ever having seen it.
+ */
 console.log("\nunclassified headings, most common first:");
 
 for (const [heading, count] of Object.entries(unknownHeadings)

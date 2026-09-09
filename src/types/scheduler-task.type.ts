@@ -20,6 +20,7 @@ export type SchedulerTaskStatusType =
 export type SchedulerTaskType =
   | "discovery_run"
   | "job_detail_scrape"
+  | "job_structure"
   | "resume_extract";
 
 /** orchestrator.execute input requirements */
@@ -31,6 +32,10 @@ export type DiscoveryRunTaskPayloadType = {
 
 /** Canonical job whose LinkedIn detail page should be scraped. */
 export type JobDetailScrapeTaskPayloadType = {
+  job_id: CanonicalJobIdType;
+};
+
+export type JobStructureTaskPayloadType = {
   job_id: CanonicalJobIdType;
 };
 
