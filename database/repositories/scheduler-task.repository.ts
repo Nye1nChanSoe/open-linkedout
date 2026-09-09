@@ -9,6 +9,7 @@ import type {
   FindSchedulerTaskByIdParamsType,
   InsertSchedulerTaskParamsType,
   JobDetailScrapeTaskPayloadType,
+  JobStructureTaskPayloadType,
   MarkSchedulerTaskCancelledParamsType,
   MarkSchedulerTaskCompletedParamsType,
   MarkSchedulerTaskFailedParamsType,
@@ -264,6 +265,36 @@ export class SchedulerTaskRepository {
       completed_at: null,
       updated_at: timestamp,
       campaign_id: campaignId ?? null,
+    };
+
+    const result = this.insertTaskStatement.run(task);
+
+    return this.findById(Number(result.lastInsertRowid))!;
+  }
+
+  /**
+   * Creates one pending job-structure task.
+   *
+   * campaign_id is deliberately left null: the markup is already paid for,
+   * so cancelling a campaign must not discard structuring for jobs that were
+   * already scraped.
+   * @param input - Canonical job whose stored markup should be parsed.
+   * @returns Newly created durable task.
+   */
+  createJobStructureTask(input: JobStructureTaskPayloadType) {
+    const timestamp = new Date().toISOString();
+    const task: InsertSchedulerTaskParamsType = {
+      task_type: "job_structure",
+      payload_json: JSON.stringify(input),
+      status: "pending",
+      attempt_count: 0,
+      next_eligible_at: null,
+      last_error: null,
+      created_at: timestamp,
+      started_at: null,
+      completed_at: null,
+      updated_at: timestamp,
+      campaign_id: null,
     };
 
     const result = this.insertTaskStatement.run(task);

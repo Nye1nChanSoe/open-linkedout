@@ -8,12 +8,14 @@ import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { Scheduler } from "@/app/scheduler/scheduler.js";
 import { DiscoveryRunTask } from "@/app/scheduler/tasks/discovery-run.task.js";
 import { JobDetailScrapeTask } from "@/app/scheduler/tasks/job-detail-scrape.task.js";
+import { JobStructureTask } from "@/app/scheduler/tasks/job-structure.task.js";
 import { ResumeExtractTask } from "@/app/scheduler/tasks/resume-extract.task.js";
 import { CampaignService } from "@/app/services/campaign.service.js";
 import { PersistDiscoveredJobsService } from "@/app/services/persist-discovered-jobs.service.js";
 import { PersistJobDetailService } from "@/app/services/persist-job-detail.service.js";
 import { ResumeExtractionService } from "@/app/services/resume-extraction.service.js";
 import { ResumeService } from "@/app/services/resume.service.js";
+import { JobStructureService } from "@/app/services/job-structure.service.js";
 import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";
 import { ScrapeAndPersistOrchestratorService } from "@/app/services/scrape-and-persist-orchestrator.service.js";
 import { SchedulerWorker } from "@/app/workers/scheduler-worker.js";
@@ -28,6 +30,7 @@ import { createDatabaseConnection } from "@database/connection.js";
 import { CampaignRepository } from "@database/repositories/campaign.repository.js";
 import { JobDetailRepository } from "@database/repositories/job-detail.repository.js";
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
+import { JobStructureRepository } from "@database/repositories/job-structure.repository.js";
 import { JobRepository } from "@database/repositories/job.repository.js";
 import { ResumeExtractionRepository } from "@database/repositories/resume-extraction.repository.js";
 import { ResumeRepository } from "@database/repositories/resume.repository.js";
@@ -45,6 +48,7 @@ const campaignRepository = new CampaignRepository(database);
 const jobRepository = new JobRepository(database);
 const jobDetailRepository = new JobDetailRepository(database);
 const jobDiscoveryRepository = new JobDiscoveryRepository(database);
+const jobStructureRepository = new JobStructureRepository(database);
 const resumeRepository = new ResumeRepository(database);
 const resumeExtractionRepository = new ResumeExtractionRepository(database);
 const schedulerTaskRepository = new SchedulerTaskRepository(database);
@@ -57,6 +61,12 @@ const campaignService = new CampaignService(
   appEventBus,
 );
 const resumeService = new ResumeService(resumeRepository, schedulerTaskService);
+const jobStructureService = new JobStructureService(
+  jobRepository,
+  jobDetailRepository,
+  jobStructureRepository,
+  schedulerTaskService,
+);
 
 const dependencies: ServerDependenciesType = {
   appEventBus,
@@ -109,6 +119,7 @@ async function createScrapeScheduler(): Promise<Scheduler> {
       new JobDetailScrapeTask(
         jobRepository,
         new PersistJobDetailService(jobDetailRepository),
+        schedulerTaskService,
         page,
         retryPolicy,
         appEventBus,
@@ -154,6 +165,31 @@ async function createDocumentScheduler(): Promise<Scheduler> {
   );
 }
 
+/**
+ * Builds the parsing scheduler.
+ *
+ * Deliberately its own worker rather than sharing the document one: it needs
+ * neither a browser nor the restruct binary, so it must not inherit that
+ * scheduler's pinned-version check, and a slow resume extraction must not
+ * stall a burst of parse tasks.
+ * @returns Scheduler for job-structure parsing.
+ * TODO: move to factory
+ */
+async function createParserScheduler(): Promise<Scheduler> {
+  return new Scheduler(
+    schedulerTaskRepository,
+    [new JobStructureTask(jobStructureService)],
+    campaignService,
+    appEventBus,
+  );
+}
+
+// Queues a parse for anything the current parser has not seen: jobs scraped
+// before this task type existed, a crash between persisting a detail and
+// queueing its parse, and every future parser version. Startup is the right
+// place for it — the same reason recoverRunningTasks() lives there.
+jobStructureService.queueOutdated();
+
 const scrapeWorker = new SchedulerWorker(
   "Scrape worker",
   ["discovery_run", "job_detail_scrape"], // tasks this worker takes
@@ -162,6 +198,14 @@ const scrapeWorker = new SchedulerWorker(
   serverConfig.WORKER_IDLE_POLL_INTERVAL_MS,
   // check stale, create new scheduler if it is.
   () => browserSession.isOpen() && !browserSession.isAlive(),
+);
+
+const parserWorker = new SchedulerWorker(
+  "Parser worker",
+  ["job_structure"],
+  schedulerTaskRepository,
+  createParserScheduler,
+  serverConfig.WORKER_IDLE_POLL_INTERVAL_MS,
 );
 
 const documentWorker = new SchedulerWorker(
@@ -184,8 +228,11 @@ console.info(
   pc.cyan(`http://${serverConfig.HOST}:${serverConfig.PORT}`),
 );
 
-// Kept so shutdown can wait for the loops to leave their task_in_flight.
-const workers = Promise.all([scrapeWorker.start(), documentWorker.start()]);
+const workers = Promise.all([
+  documentWorker.start(),
+  scrapeWorker.start(),
+  parserWorker.start(),
+]);
 
 let isShuttingDown = false;
 
@@ -200,6 +247,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   console.info(pc.yellow(`\nShutting down on ${signal}...`));
 
   scrapeWorker.stop();
+  parserWorker.stop();
   documentWorker.stop();
   server.close();
 

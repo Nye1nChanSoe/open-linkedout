@@ -34,14 +34,6 @@ export class Scheduler {
   }
 
   /**
-   * Recovers tasks left running by a previous application process.
-   * @returns Number of tasks returned to pending.
-   */
-  recoverInterruptedTasks(): number {
-    return this.schedulerTaskRepository.recoverRunningTasks(this.taskTypes);
-  }
-
-  /**
    * Claims and executes one eligible durable task.
    * @returns Whether a task was claimed.
    */

@@ -5,6 +5,7 @@ import { ScrapingError } from "@/app/errors/scraping-error.js";
 import { AppEventBus } from "@/app/events/app-event-bus.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { PersistJobDetailService } from "@/app/services/persist-job-detail.service.js";
+import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";
 import domEventConfig from "@/config/dom-event.config.js";
 import type { SchedulerTaskContract } from "@/contracts/scheduler-task.contract.js";
 import { extractJobDetailData } from "@/pages/view/extractor.js";
@@ -28,6 +29,7 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
   constructor(
     private readonly jobRepository: JobRepository,
     private readonly persistJobDetailService: PersistJobDetailService,
+    private readonly schedulerTaskService: SchedulerTaskService,
     private readonly page: Page,
     private readonly retryPolicy: RetryPolicy,
     private readonly appEventBus: AppEventBus,
@@ -79,10 +81,16 @@ export class JobDetailScrapeTask implements SchedulerTaskContract {
       return;
     }
 
-    this.persistJobDetailService.execute({
+    const { jobDetail } = this.persistJobDetailService.execute({
       jobId: job.id,
       extractedJobDetail: await this.extractJobDetail(jobDetailPage),
     });
+
+    // Parsing is a separate task on a separate worker: it needs no browser,
+    // it is CPU bound tasks and a failed parse must not cost the page load that fed it.
+    if (jobDetail.description_html) {
+      this.schedulerTaskService.createJobStructureTask({ job_id: job.id });
+    }
   }
 
   /**

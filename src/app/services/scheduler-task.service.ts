@@ -4,8 +4,12 @@ import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
 import type {
   CreateDiscoveryRunTaskInputType,
   DBSchedulerTaskRowType,
+  JobStructureTaskPayloadType,
 } from "@/types/scheduler-task.type.js";
-import { isDatabaseBusyError } from "@/utils/utils.js";
+import {
+  isDatabaseBusyError,
+  runRepositoryOperationSafely,
+} from "@/utils/utils.js";
 
 /**
  * Creates durable scheduler tasks for application workflows.
@@ -46,6 +50,17 @@ export class SchedulerTaskService {
     return this.schedulerTaskRepository.createResumeExtractTask({
       resume_id: resumeId,
     });
+  }
+
+  /**
+   * Creates one pending job-structure task.
+   * @param input - Canonical job whose stored markup should be parsed.
+   * @returns Newly created durable scheduler task.
+   */
+  createJobStructureTask(input: JobStructureTaskPayloadType) {
+    return runRepositoryOperationSafely("create job structure task", () =>
+      this.schedulerTaskRepository.createJobStructureTask(input),
+    );
   }
 
   /**

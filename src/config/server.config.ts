@@ -6,7 +6,13 @@ const config = {
    */
   HOST: "127.0.0.1",
 
-  PORT: Number(process.env.LINKEDOUT_TEST_PORT ?? 3000),
+  /**
+   * https://www.iana.org/assignments/service-names-port-numbers
+   * LinkedOut port
+   * 76 = ASCII "L"
+   * 79 = ASCII "O"
+   */
+  PORT: 7679,
 
   /**
    * Built React application served by the API process.
