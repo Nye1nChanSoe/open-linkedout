@@ -7,6 +7,7 @@ import { ApplicationError } from "@/app/errors/application-error.js";
 import serverConfig from "@/config/server.config.js";
 import type { ServerDependenciesType } from "@/server/dependencies.js";
 import { streamAppEvents } from "@/server/events.js";
+import { createBrowserRoutes } from "@/server/routes/browser.routes.js";
 import { createCampaignRoutes } from "@/server/routes/campaigns.routes.js";
 import { createJobRoutes } from "@/server/routes/jobs.routes.js";
 import { createResumeRoutes } from "@/server/routes/resumes.routes.js";
@@ -25,6 +26,7 @@ export function createApp(dependencies: ServerDependenciesType): Hono {
     context.json({ status: "ok", startedAt: new Date().toISOString() }),
   );
 
+  app.route("/api/browser", createBrowserRoutes(dependencies));
   app.route("/api/campaigns", createCampaignRoutes(dependencies));
   app.route("/api/jobs", createJobRoutes(dependencies));
   app.route("/api/tasks", createTaskRoutes(dependencies));

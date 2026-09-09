@@ -38,7 +38,7 @@ runMigrations();
 
 const database = createDatabaseConnection();
 const appEventBus = new AppEventBus();
-const browserSession = new BrowserSession();
+const browserSession = new BrowserSession(appEventBus);
 const retryPolicy = new RetryPolicy();
 
 const campaignRepository = new CampaignRepository(database);
@@ -60,6 +60,7 @@ const resumeService = new ResumeService(resumeRepository, schedulerTaskService);
 
 const dependencies: ServerDependenciesType = {
   appEventBus,
+  browserSession,
   campaignService,
   resumeService,
   jobRepository,

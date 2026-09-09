@@ -1,3 +1,4 @@
+import { BrowserSession } from "@/app/browser/browser-session.js";
 import { AppEventBus } from "@/app/events/app-event-bus.js";
 import { CampaignService } from "@/app/services/campaign.service.js";
 import { ResumeService } from "@/app/services/resume.service.js";
@@ -11,6 +12,7 @@ import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.r
 /** Everything the HTTP layer reads and writes through. */
 export type ServerDependenciesType = {
   appEventBus: AppEventBus;
+  browserSession: BrowserSession;
   campaignService: CampaignService;
   resumeService: ResumeService;
   jobRepository: JobRepository;

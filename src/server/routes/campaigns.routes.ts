@@ -28,6 +28,10 @@ export function createCampaignRoutes(dependencies: ServerDependenciesType) {
       );
     }
 
+    // Asking for a campaign is asking to scrape, which is the one thing that
+    // may reopen a browser the user closed.
+    dependencies.browserSession.resume();
+
     const campaign = dependencies.campaignService.createCampaign({
       name: body.name?.trim() || `${keywords[0]} — ${locations[0]}`,
       keywords,

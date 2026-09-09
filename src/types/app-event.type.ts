@@ -7,8 +7,8 @@ import type {
 /**
  * Everything the UI learns about while it is open.
  *
- * The whole application runs in one process, so these are published in
- * memory and streamed to the browser over SSE. Nothing polls.
+ * The whole application runs in one process, so these are published
+ * in-memory and streamed to the browser over SSE. Nothing polls. [9 Sept 2026]
  */
 export type AppEventType =
   | {
@@ -46,9 +46,19 @@ export type AppEventType =
   | {
       type: "linkedin.authentication_required";
       url: string;
+    }
+  /**
+   * The browser closed, so scraping is paused. It is not reopened on its own:
+   * Document work and the API carry on.
+   * The UI must show this, or the pause looks like a stall.
+   */
+  | {
+      type: "browser.closed";
     };
 
-/** One published event, stamped as it leaves the emitter. */
+/**
+ * One published event, stamped as it leaves the emitter.
+ */
 export type PublishedAppEventType = AppEventType & {
   emittedAt: string;
 };

@@ -1,5 +1,8 @@
+import pc from "picocolors";
 import { chromium, type BrowserContext, type Page } from "playwright";
 
+import { AppEventBus } from "@/app/events/app-event-bus.js";
+import { ScrapingError } from "@/app/errors/scraping-error.js";
 import scraperConfig from "@/config/scraper.config.js";
 import { debugDOMLogs } from "@/utils/utils.js";
 
@@ -10,6 +13,10 @@ export class BrowserSession {
   private context?: BrowserContext;
   private page?: Page;
   private launch?: Promise<Page>;
+  private cleanup?: Promise<void>;
+  private isClosedByUser = false;
+
+  constructor(private readonly appEventBus?: AppEventBus) {}
 
   /**
    * Returns the scraping page, launching the browser on first call.
@@ -18,8 +25,19 @@ export class BrowserSession {
   async getPage(): Promise<Page> {
     // alive -> return the page
     if (this.isAlive()) return this.page!;
-    // dead -> discard and then relaunch
-    if (this.page) this.discard();
+    // closed -> stay closed until someone asks to scrape again
+    if (this.isPaused()) {
+      throw new ScrapingError(
+        "Scraping is paused: the browser was closed.",
+        "BROWSER_CLOSED",
+        false,
+      );
+    }
+
+    // A browser that went away may still be exiting, and it holds the lock
+    // on the profile directory until it has.
+    await this.cleanup;
+    this.cleanup = undefined;
 
     // Concurrent callers must not launch two browsers against the same
     // persistent profile directory.
@@ -47,6 +65,56 @@ export class BrowserSession {
    */
   isOpen(): boolean {
     return this.context !== undefined;
+  }
+
+  /**
+   * Whether scraping is paused because the browser went away.
+   *
+   * A closed browser is not reopened on its own closing it is a deliberate act
+   * @returns Whether scraping is paused.
+   */
+  isPaused(): boolean {
+    if (this.isClosedByUser) return true;
+
+    if (!this.isOpen() || this.isAlive()) return false;
+
+    this.isClosedByUser = true;
+    this.cleanup = this.terminate();
+
+    console.warn(
+      pc.yellow("Scraping paused"),
+      pc.dim(":"),
+      "the browser was closed. Start a campaign to resume.",
+    );
+
+    this.appEventBus?.publish({ type: "browser.closed" });
+
+    return true;
+  }
+
+  /**
+   * Lets the browser open again. Called when scraping is explicitly asked
+   * for, which is the only thing that may reopen a closed window.
+   */
+  resume(): void {
+    this.isClosedByUser = false;
+  }
+
+  /**
+   * Ends the Chromium process behind a browser that has gone away.
+   *
+   * Forgetting the references is not enough. Closing a window does not end
+   * the process, and while it lives it holds `SingletonLock` on the profile
+   * directory — the next launch is then handed off to it and exits at once,
+   * leaving Playwright wired to a process that is already gone. The symptom
+   * is a browser window that appears with no page behind it.
+   */
+  private async terminate(): Promise<void> {
+    const context = this.context;
+
+    this.discard();
+
+    await context?.close().catch(() => undefined);
   }
 
   /**

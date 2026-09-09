@@ -2,7 +2,7 @@ import pc from "picocolors";
 
 import { Scheduler } from "@/app/scheduler/scheduler.js";
 import type { SchedulerTaskType } from "@/types/scheduler-task.type.js";
-import { sleep } from "@/utils/utils.js";
+import { describeError, sleep } from "@/utils/utils.js";
 import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.repository.js";
 
 /**
@@ -21,7 +21,7 @@ export class SchedulerWorker {
     private readonly schedulerTaskRepository: SchedulerTaskRepository,
     private readonly createScheduler: () => Promise<Scheduler>,
     private readonly idlePollIntervalMs: number,
-    private readonly isSchedulerStale: () => boolean = () => false,
+    private readonly isPaused: () => boolean = () => false,
   ) {}
 
   /**
@@ -42,18 +42,25 @@ export class SchedulerWorker {
     }
 
     while (!this.isStopping) {
+      if (this.isPaused()) {
+        this.scheduler = undefined;
+        await sleep(this.idlePollIntervalMs);
+        continue;
+      }
+
       if (!this.hasQueuedWork()) {
         await sleep(this.idlePollIntervalMs);
         continue;
       }
 
-      const scheduler = await this.getScheduler();
+      const scheduler = await this.buildScheduler();
 
-      while (
-        !this.isStopping &&
-        !this.isSchedulerStale() &&
-        (await scheduler.run())
-      ) {}
+      if (!scheduler) {
+        await sleep(this.idlePollIntervalMs);
+        continue;
+      }
+
+      while (!this.isStopping && !this.isPaused() && (await scheduler.run())) {}
 
       // Retry-waiting tasks are queued but not yet eligible.
       await sleep(this.idlePollIntervalMs);
@@ -69,17 +76,25 @@ export class SchedulerWorker {
   }
 
   /**
-   * Returns the scheduler, rebuilding it when the last one went stale.
-   * @returns Scheduler for this worker's task types.
+   * Returns the scheduler, building it on first use.
+   *
+   * @returns Scheduler for this worker's task types, or undefined when it
+   * could not be built.
    */
-  private async getScheduler(): Promise<Scheduler> {
-    if (this.scheduler && this.isSchedulerStale()) {
-      console.warn(pc.yellow(`${this.name}: rebuilding, its browser is gone`));
+  private async buildScheduler(): Promise<Scheduler | undefined> {
+    if (this.scheduler) return this.scheduler;
 
-      this.scheduler = undefined;
+    try {
+      this.scheduler = await this.createScheduler();
+    } catch (error) {
+      console.error(
+        pc.red(`${this.name}: cannot start`),
+        pc.dim(":"),
+        describeError(error),
+      );
     }
 
-    return (this.scheduler ??= await this.createScheduler());
+    return this.scheduler;
   }
 
   private hasQueuedWork(): boolean {
