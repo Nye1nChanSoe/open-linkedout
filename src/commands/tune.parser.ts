@@ -2,16 +2,17 @@ import { parseJobStructure } from "@/app/parsers/job-detail-structure-parser.js"
 import { createDatabaseConnection } from "@database/connection.js";
 
 /**
- * THROW AWAY script for checking description_html parsing accuracy
+ * Tuning script for checking description_html parsing accuracy
  */
 const database = createDatabaseConnection();
 const rows = database
   .prepare(
-    `SELECT job_id, description_html
-     FROM job_details
-     WHERE description_html IS NOT NULL AND length(description_html) > 0`,
+    `SELECT d.job_id, d.description_html, j.title
+     FROM job_details d
+     JOIN jobs j ON j.id = d.job_id
+     WHERE d.description_html IS NOT NULL AND length(d.description_html) > 0`,
   )
-  .all() as { job_id: number; description_html: string }[];
+  .all() as { job_id: number; description_html: string; title: string }[];
 
 console.log(`${rows.length} descriptions with markup\n`);
 
@@ -20,11 +21,11 @@ const unknownHeadings: Record<string, number> = {};
 let noHeadingCount = 0;
 
 for (const [index, row] of rows.entries()) {
-  const { sections } = parseJobStructure(row.description_html);
+  const { sections } = parseJobStructure(row.description_html, row.title);
 
-  // A job whose only section is the unheaded lead is a parse the heading
-  // rules did not understand. That count is the headline number.
-  if (sections.length <= 1) noHeadingCount++;
+  // A single section can have a valid heading; this measures heading presence,
+  // not parsing accuracy or whether the source ought to have more sections.
+  if (!sections.some((section) => section.heading !== null)) noHeadingCount++;
 
   for (const section of sections) {
     typeCounts[section.sectionType] =

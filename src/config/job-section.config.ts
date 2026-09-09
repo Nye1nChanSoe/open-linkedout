@@ -23,6 +23,7 @@ const config = {
     "job description": "overview", // 12
     "role overview": "overview", // 5
     "about the role": "overview", // 4
+    "about this role": "overview", // LiveKit, job 86
     "job summary": "overview", // 3
     summary: "overview", // 2
     "the opportunity": "overview", // 3
@@ -58,6 +59,8 @@ const config = {
     "what we are looking for": "requirements", // 3
     "what we're looking for": "requirements", // 2
     "who you are": "requirements",
+    "about you": "requirements", // Amaris and SearchApi, jobs 16, 88, 105
+    "must have": "requirements", // Jobs 87, 108, 120, 122
     "what you'll bring": "requirements", // 2
     "what you'll need to succeed": "requirements", // 2
     "it's great if you have": "requirements", // 2
@@ -111,6 +114,7 @@ const config = {
     "application process": "process", // 3
     "interview process": "process",
     "hiring process": "process",
+    "selection process": "process", // TikTok, job 13; bare heading before prose
     "recruitment process": "process",
     "how to apply": "process",
     "next steps": "process",
@@ -121,6 +125,28 @@ const config = {
     "equal opportunity employer": "other", // 4
     "eeo statement": "other",
   } as Record<string, JobSectionTypeType>,
+
+  /**
+   * Last resort, after the exact table and the prefixes. Headings are a Zipf
+   * tail — in 70 jobs almost every unmatched wording appeared exactly once —
+   * so the only thing that scales is matching the word that carries the
+   * meaning. Measured to classify 51 of 100 previously unknown sections.
+   *
+   * Order matters: the first match wins.
+   */
+  SECTION_TYPE_BY_HEADING_KEYWORD: [
+    [/disclaimer|equal opportunity|eeo\b|privacy/, "other"],
+    [/benefit|perks|compensation|comp and|salary|\bpay\b|receive from us|rewards/, "benefits"],
+    [/process|timeline|how to apply|next steps|interview/, "process"],
+    [
+      /responsibilit|duties|deliverables|what you.?ll (do|own|work on)|your impact|make an impact|role entails|outcome/,
+      "responsibilities",
+    ],
+    [
+      /qualification|requirement|skills|experience|expertise|nice to have|bonus if|good to have|your profile|looking for|look to you for|set you up for success/,
+      "requirements",
+    ],
+  ] as [RegExp, JobSectionTypeType][],
 
   /**
    * Company-specific headings ("About Agoda", "Why Binance") are endless, so

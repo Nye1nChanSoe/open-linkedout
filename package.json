@@ -10,6 +10,7 @@
     "app": "tsx src/main.ts",
     "db:migrate": "tsx database/migrate.ts",
     "typecheck": "tsc --noEmit",
+    "test:parser": "node --import tsx --test src/app/parsers/job-detail-structure-parser.test.ts",
     "scrape:discovery": "tsx src/commands/scrape.discovery-run.ts",
     "scrape:detail": "tsx src/commands/scrape.detail.ts",
     "resume:import": "tsx src/commands/resume.import.ts"

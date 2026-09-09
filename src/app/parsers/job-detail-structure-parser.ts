@@ -123,7 +123,7 @@ function parseApplicantCount(
  * Version of the parsing logic below. Structures are derived data, so a row
  * records which parser produced it and is re-parsed when this moves.
  */
-export const JOB_STRUCTURE_PARSER_VERSION = "1.0.0";
+export const JOB_STRUCTURE_PARSER_VERSION = "1.0.1";
 
 /** Version of the shape `parseJobStructure` returns. */
 export const JOB_STRUCTURE_SCHEMA_VERSION = "1.0.0";
@@ -147,6 +147,12 @@ const BLOCK_TAGS = new Set([
 const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 
 /**
+ * Job ads rarely use <h*>. A run that is entirely bold is the heading signal
+ * employers actually reach for — all 70 corpus jobs use <strong>.
+ */
+const EMPHASIS_TAGS = new Set(["strong", "b"]);
+
+/**
  * The flat stream the walk produces before anything is grouped.
  *
  * Splitting the walk from the grouping is what keeps this readable: the walk
@@ -154,7 +160,7 @@ const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
  * job ads and nothing about HTML.
  */
 type TokenType =
-  | { kind: "text"; text: string }
+  | { kind: "text"; text: string; isEmphasised: boolean }
   | { kind: "lineBreak" }
   | { kind: "blockBreak" }
   | { kind: "bullet"; text: string }
@@ -172,12 +178,82 @@ type ClassifiedBlockType = JobBlockType & { isHeading: boolean };
  * @param descriptionHtml - `job_details.description_html` as scraped.
  * @returns Sections in the order the ad presents them.
  */
-export function parseJobStructure(descriptionHtml: string): JobStructureType {
+export function parseJobStructure(
+  descriptionHtml: string,
+  jobTitle?: string,
+): JobStructureType {
   const tokens: TokenType[] = [];
 
   collectTokens(parseFragment(descriptionHtml), tokens);
 
-  return { sections: groupIntoSections(foldIntoBlocks(tokens)) };
+  const blocks = foldIntoBlocks(tokens);
+
+  return {
+    sections: groupIntoSections(
+      splitBuriedHeadings(unmarkRepeatedTitle(blocks, jobTitle)),
+    ),
+  };
+}
+
+/**
+ * Lifts a heading out of the paragraph it is stuck to.
+ *
+ * Some ads separate a heading from its body with a single <br>, which is a
+ * newline inside one run rather than a paragraph break — TikTok writes every
+ * section that way. The heading is then invisible and its whole body lands
+ * under whatever heading came before.
+ *
+ * Only a first line the vocabulary already recognises is split off. Shape
+ * alone is not enough here: any paragraph opening with a short clause would
+ * qualify, and inventing headings is worse than missing them.
+ * @param blocks - Blocks in document order.
+ * @returns The same blocks, with buried headings promoted ahead of their body.
+ */
+function splitBuriedHeadings(
+  blocks: ClassifiedBlockType[],
+): ClassifiedBlockType[] {
+  return blocks.flatMap((block) => {
+    if (block.isHeading || block.kind !== "paragraph") return block;
+
+    const newlineIndex = block.text.indexOf("\n");
+
+    if (newlineIndex === -1) return block;
+
+    const firstLine = block.text.slice(0, newlineIndex).trim();
+    const rest = block.text.slice(newlineIndex + 1).trim();
+
+    if (!rest || !isHeadingShaped(firstLine)) return block;
+    if (classifyHeading(firstLine, false) === null) return block;
+
+    return [
+      { kind: "paragraph" as const, text: firstLine, isHeading: true },
+      { ...block, text: rest },
+    ];
+  });
+}
+
+/**
+ * Unmarks a bold run that is only the job's own title repeated.
+ *
+ * Employers bold the title at the top of the ad. It is heading-shaped and
+ * bold, so it would otherwise open a section named after the job.
+ * @param blocks - Blocks in document order.
+ * @param jobTitle - Title from the `jobs` row, when the caller has it.
+ * @returns The same blocks, with any title heading demoted.
+ */
+function unmarkRepeatedTitle(
+  blocks: ClassifiedBlockType[],
+  jobTitle?: string,
+): ClassifiedBlockType[] {
+  if (!jobTitle) return blocks;
+
+  const normalizedTitle = normalizeHeading(jobTitle);
+
+  return blocks.map((block) =>
+    block.isHeading && normalizeHeading(block.text) === normalizedTitle
+      ? { ...block, isHeading: false }
+      : block,
+  );
 }
 
 /**
@@ -185,13 +261,21 @@ export function parseJobStructure(descriptionHtml: string): JobStructureType {
  * @param node - Node whose children are being walked.
  * @param tokens - Stream being appended to.
  */
-function collectTokens(node: ParentNodeType, tokens: TokenType[]): void {
+function collectTokens(
+  node: ParentNodeType,
+  tokens: TokenType[],
+  isEmphasised = false,
+): void {
   for (const child of node.childNodes) {
     if (isTextNode(child)) {
       // Newlines in the source are HTML whitespace, not line breaks. Only a
       // <br> ends a line, so they collapse here rather than surviving into
       // the block text and hiding a heading inside a wrapped run.
-      tokens.push({ kind: "text", text: child.value.replace(/\s+/g, " ") });
+      tokens.push({
+        kind: "text",
+        text: child.value.replace(/\s+/g, " "),
+        isEmphasised,
+      });
       continue;
     }
 
@@ -208,14 +292,15 @@ function collectTokens(node: ParentNodeType, tokens: TokenType[]): void {
 
     if (tagName === "ul" || tagName === "ol") {
       tokens.push({ kind: "blockBreak" });
-
-      for (const item of child.childNodes) {
-        if (!isElement(item) || item.tagName.toLowerCase() !== "li") continue;
-
-        tokens.push({ kind: "bullet", text: readTextContent(item) });
-      }
-
+      // Stored ads also put nested lists beside <li>, directly under <ul>.
+      // Walk every child so those requirement lists are not silently lost.
+      collectTokens(child, tokens, isEmphasised);
       tokens.push({ kind: "blockBreak" });
+      continue;
+    }
+
+    if (tagName === "li") {
+      tokens.push({ kind: "bullet", text: readTextContent(child) });
       continue;
     }
 
@@ -230,7 +315,7 @@ function collectTokens(node: ParentNodeType, tokens: TokenType[]): void {
     // paragraph in progress, so they are walked without a boundary.
     if (BLOCK_TAGS.has(tagName)) tokens.push({ kind: "blockBreak" });
 
-    collectTokens(child, tokens);
+    collectTokens(child, tokens, isEmphasised || EMPHASIS_TAGS.has(tagName));
 
     if (BLOCK_TAGS.has(tagName)) tokens.push({ kind: "blockBreak" });
   }
@@ -248,20 +333,31 @@ function foldIntoBlocks(tokens: TokenType[]): ClassifiedBlockType[] {
   const blocks: ClassifiedBlockType[] = [];
   let pending: string[] = [];
   let lineBreakRun = 0;
+  let isPendingEmphasised = true;
 
   const flushParagraph = () => {
     const text = normalizeWhitespace(pending.join(""));
+    const wasEmphasised = isPendingEmphasised;
 
     pending = [];
+    isPendingEmphasised = true;
 
     if (text && !isIgnoredBlockText(text)) {
-      blocks.push({ kind: "paragraph", text, isHeading: false });
+      blocks.push({
+        kind: "paragraph",
+        text,
+        isHeading: wasEmphasised && isHeadingShaped(text),
+      });
     }
   };
 
   for (const token of tokens) {
     if (token.kind === "text") {
       pending.push(token.text);
+
+      // One unbolded word is enough to make this a sentence, not a heading.
+      if (!token.isEmphasised && token.text.trim()) isPendingEmphasised = false;
+
       lineBreakRun = 0;
       continue;
     }
@@ -317,7 +413,7 @@ function markInferredHeadings(
     if (!isHeadingShaped(block.text)) return block;
 
     const introducesList = blocks[index + 1]?.kind === "bullet";
-    const isKnown = classifyHeading(block.text) !== null;
+    const isKnown = classifyHeading(block.text, false) !== null;
 
     return { ...block, isHeading: introducesList || isKnown };
   });
@@ -333,6 +429,14 @@ function isHeadingShaped(text: string): boolean {
   if (text.split(/\s+/).length > sectionConfig.HEADING_MAX_WORDS) return false;
   if (text.includes("\n")) return false;
 
+  // LinkedIn's poster requirements and some employer lists use plain <p>.
+  // Their bullet markers identify content even when it is short or bold.
+  if (/^[•●▪◦*–—-]\s*/u.test(text)) return false;
+
+  // "Location: Empire Tower" is a labelled value, not a heading. A trailing
+  // colon is fine — "Responsibilities:" is how half the corpus writes it.
+  if (/:\s*\S/.test(text)) return false;
+
   // A heading may end in a colon or a question mark, never a sentence stop.
   return !/[.;,!]$/.test(text);
 }
@@ -340,7 +444,7 @@ function isHeadingShaped(text: string): boolean {
 /**
  * Groups blocks under the heading that introduced them.
  * @param blocks - Blocks in document order, headings marked.
- * @returns Sections, empty ones dropped.
+ * @returns Sections, including standalone headings whose text must be retained.
  */
 function groupIntoSections(blocks: ClassifiedBlockType[]): JobSectionType[] {
   const sections: JobSectionType[] = [];
@@ -370,7 +474,9 @@ function groupIntoSections(blocks: ClassifiedBlockType[]): JobSectionType[] {
     current.blocks.push({ kind: block.kind, text: block.text });
   }
 
-  return sections.filter((section) => section.blocks.length > 0);
+  // Consecutive headings can be parent/subsection labels or bold facts such
+  // as location and compensation. Keep them even when no body follows.
+  return sections;
 }
 
 /**
@@ -395,7 +501,10 @@ function pushLeadingSection(sections: JobSectionType[]): JobSectionType {
  * @param heading - Raw heading text.
  * @returns Section type, or null when the vocabulary does not know it.
  */
-function classifyHeading(heading: string): JobSectionTypeType | null {
+function classifyHeading(
+  heading: string,
+  allowKeywords = true,
+): JobSectionTypeType | null {
   const normalized = normalizeHeading(heading);
 
   // hasOwn, not a bare lookup: a heading of "constructor" or "toString"
@@ -411,6 +520,17 @@ function classifyHeading(heading: string): JobSectionTypeType | null {
     if (normalized.startsWith(prefix)) return sectionType;
   }
 
+  // Keywords label established headings; they cannot establish one on their
+  // own (e.g. "performance, cost, and latency requirements" is body text).
+  if (!allowKeywords) return null;
+
+  for (const [
+    pattern,
+    sectionType,
+  ] of sectionConfig.SECTION_TYPE_BY_HEADING_KEYWORD) {
+    if (pattern.test(normalized)) return sectionType;
+  }
+
   return null;
 }
 
@@ -423,8 +543,17 @@ function normalizeHeading(heading: string): string {
   return normalizeWhitespace(heading)
     .toLowerCase()
     .replaceAll("’", "'")
-    .replace(/^[\s*•\-–—]+/, "")
-    .replace(/[\s:?!.]+$/, "");
+    .replaceAll("&", "and")
+    // Employers decorate headings: "💻 Tech Stack" is the same heading as
+    // "Tech Stack" and was missing the table on the emoji alone.
+    .replace(/^[\p{Extended_Pictographic}\p{So}\uFE0F\s]+/u, "")
+    // "Nice-to-haves" and "Nice to have" are the same heading, and the
+    // hyphenated form was missing the table on punctuation alone.
+    .replace(/[-–—/]+/g, " ")
+    .replace(/^[\s*•]+/, "")
+    .replace(/[\s:?!.]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**

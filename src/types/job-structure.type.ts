@@ -27,6 +27,7 @@ export type JobSectionType = {
   /** Null for the blocks that appear before the ad's first heading. */
   heading: string | null;
   sectionType: JobSectionTypeType;
+  /** May be empty for a standalone heading or a parent before subsections. */
   blocks: JobBlockType[];
 };
 
