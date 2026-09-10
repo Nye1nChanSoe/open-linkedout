@@ -11,17 +11,21 @@
     "db:migrate": "tsx database/migrate.ts",
     "typecheck": "tsc --noEmit",
     "test:parser": "node --import tsx --test src/app/parsers/job-detail-structure-parser.test.ts",
+    "embedding:fixture": "tsx src/commands/embedding.fixture.ts",
     "scrape:discovery": "tsx src/commands/scrape.discovery-run.ts",
     "scrape:detail": "tsx src/commands/scrape.detail.ts",
     "resume:import": "tsx src/commands/resume.import.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
+    "@huggingface/transformers": "^4.2.0",
     "better-sqlite3": "^13.0.1",
     "hono": "^4.13.7",
+    "onnxruntime-node": "^1.29.0",
     "parse5": "^8.0.1",
     "picocolors": "^1.1.1",
-    "playwright": "^1.61.1"
+    "playwright": "^1.61.1",
+    "sqlite-vec": "^0.1.9"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

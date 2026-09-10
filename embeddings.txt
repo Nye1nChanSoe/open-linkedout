@@ -1,0 +1,115 @@
+-- download BGE - BAAI General Embedding
+
+mkdir -p models/bge-small-en-v1.5/1_Pooling
+BASE=https://huggingface.co/BAAI/bge-small-en-v1.5/resolve/main
+curl -L -o models/bge-small-en-v1.5/model.onnx            $BASE/onnx/model.onnx
+curl -L -o models/bge-small-en-v1.5/config.json           $BASE/config.json
+curl -L -o models/bge-small-en-v1.5/tokenizer.json        $BASE/tokenizer.json
+curl -L -o models/bge-small-en-v1.5/tokenizer_config.json $BASE/tokenizer_config.json
+curl -L -o models/bge-small-en-v1.5/special_tokens_map.json $BASE/special_tokens_map.json
+curl -L -o models/bge-small-en-v1.5/vocab.txt             $BASE/vocab.txt
+curl -L -o models/bge-small-en-v1.5/sentence_bert_config.json $BASE/sentence_bert_config.json
+curl -L -o models/bge-small-en-v1.5/1_Pooling/config.json $BASE/1_Pooling/config.json
+
+
+EMBEDDING
+=========
+
+text -> fixed-length vector of floats. similar meaning -> similar direction.
+cosine similarity is the whole point: 1 = same direction, 0 = unrelated. -1 = inversely correlated
+
+
+flow
+----
+chunk text
+  - tokenizer (tokenizer.json)      words -> token ids
+  - onnx session (model.onnx)       ids -> one vector PER TOKEN
+  - pooling                         many token vectors -> ONE vector
+  - L2 normalize                    length 1, so dot product IS cosine
+  - Float32Array -> Buffer          BLOB into vec_chunks
+
+384 floats out. all of it local, no network, no python.
+
+
+pooling
+-------
+NOT a choice. read it from the model's own 1_Pooling/config.json.
+
+  all-MiniLM-L6-v2    mean    average every non-padding token
+  bge-small-en-v1.5   cls     take token 0 only
+
+get this wrong and NOTHING errors. same dims, still normalized, still
+plausible neighbours - just a different, worse encoder. measured: mean vs cls
+on the same model output = cosine 0.45-0.62. that is not drift.
+
+same file also gives max_seq_length (256 vs 512) and do_lower_case.
+
+
+embedding_profile
+-----------------
+the cache key. NOT the model name.
+
+  model + tokenizer revision    different weights or vocab
+  pooling                       cls vs mean
+  query/passage prefix          bge and e5 train with instructions
+  dtype                         fp32 vs int8
+  max_seq_length                changes what gets truncated
+
+two vectors are only comparable if all of that matches.
+384 == 384 proves nothing.
+
+
+where the code lives
+--------------------
+src/app/embeddings/     text -> numbers. no SQL.
+database/repositories/  numbers -> disk. no ONNX.
+
+same split as the parser: src/app/parsers/ makes the structure,
+job-structure.repository.ts stores it. the test is "does it write SQL".
+
+
+measured on this M1
+-------------------
+                      MiniLM      BGE
+  batch of 8          27ms        50ms        <- 3.4 vs 6.2 ms per chunk
+  3170 corpus blocks  ~11s        ~20s
+  peak RSS            350MB       528MB
+  related pair        0.44        0.70
+  unrelated pair      0.09        0.44
+
+blocks per chunk: median 19 tokens, p90 47, max 224.
+
+bigger batches are WORSE per chunk. a batch pads to its longest member, so
+batch 32 wastes most of its compute on padding. batch 8 beats batch 32 by
+2.4x. sort by length before batching if it ever matters.
+
+27ms of blocking at a time. no worker_threads needed.
+
+
+gotchas
+-------
+vec0 primary key       better-sqlite3 binds js numbers as float and vec0
+                       rejects it. use CAST(? AS INTEGER) in the statement.
+
+distance_metric        sqlite-vec defaults to L2. say cosine explicitly.
+                       normalized vectors ORDER the same either way, so a
+                       smoke test passes and only the thresholds are wrong.
+                       similarity = 1 - distance.
+
+thresholds             model-specific. bge's unrelated floor is 0.44 where
+                       minilm's is 0.09. a threshold tuned on one is
+                       meaningless on the other. do not hardcode .65.
+
+fixture                src/app/embeddings/fixtures/embedding-reference.json
+                       5 sentences, their vectors, and the profile that made
+                       them. regenerate ONLY on a deliberate profile change.
+
+
+┌────────┬──────────┬────────────────┬──────────┐
+│        │ baseline │ + ONNX session │ peak RSS │
+├────────┼──────────┼────────────────┼──────────┤
+│ MiniLM │ 273 MB   │ +144 MB        │ 441 MB   │
+├────────┼──────────┼────────────────┼──────────┤
+│ BGE    │ 241 MB   │ +207 MB        │ 463 MB   │
+└────────┴──────────┴────────────────┴──────────┘
+
