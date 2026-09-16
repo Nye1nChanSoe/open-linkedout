@@ -3,6 +3,45 @@ export type RestructResumeDocumentType = {
   [section: string]: unknown;
 };
 
+/** The prose fields every restruct v1 entry carries. */
+export type RestructTextEntryType = {
+  paragraphs: string[];
+  bullets: string[];
+};
+
+/**
+ * The parts of a restruct v1 document that hold matchable text, following
+ * resume.schema.json at the project root. Every other
+ * field (titles, companies, dates, urls, header_profile) is context, not prose.
+ * A null section means the resume had no such section.
+ */
+export type RestructResumeTextType = {
+  summary: {
+    content: { type: "paragraph" | "bullet" | "subheading"; text: string }[];
+  } | null;
+  experience: RestructTextEntryType[] | null;
+  education: (RestructTextEntryType & { skills: string[] })[] | null;
+  skills: RestructTextEntryType[] | null;
+  projects: RestructTextEntryType[] | null;
+  certifications: RestructTextEntryType[] | null;
+  licenses: RestructTextEntryType[] | null;
+  tools_equipment: RestructTextEntryType[] | null;
+  languages: RestructTextEntryType[] | null;
+  volunteering: RestructTextEntryType[] | null;
+  awards: RestructTextEntryType[] | null;
+  publications: RestructTextEntryType[] | null;
+  references: RestructTextEntryType[] | null;
+  interests: RestructTextEntryType[] | null;
+  others:
+    | {
+        heading: string;
+        entries: (RestructTextEntryType & {
+          attributes: { type: string; value: string }[];
+        })[];
+      }[]
+    | null;
+};
+
 export type RestructExtractionResultType = {
   document: RestructResumeDocumentType;
   artifactPath: string;
