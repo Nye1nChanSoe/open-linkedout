@@ -123,7 +123,7 @@ function parseApplicantCount(
  * Version of the parsing logic below. Structures are derived data, so a row
  * records which parser produced it and is re-parsed when this moves.
  */
-export const JOB_STRUCTURE_PARSER_VERSION = "1.0.1";
+export const JOB_STRUCTURE_PARSER_VERSION = "1.0.3";
 
 /** Version of the shape `parseJobStructure` returns. */
 export const JOB_STRUCTURE_SCHEMA_VERSION = "1.0.0";
@@ -190,9 +190,37 @@ export function parseJobStructure(
 
   return {
     sections: groupIntoSections(
-      splitBuriedHeadings(unmarkRepeatedTitle(blocks, jobTitle)),
+      splitTypedBullets(
+        splitBuriedHeadings(unmarkRepeatedTitle(blocks, jobTitle)),
+      ),
     ),
   };
+}
+
+const TYPED_BULLET_MARKER = /^[•\-*]\s+/;
+
+/**
+ * Turns paragraphs written as typed bullets ("• …", "- …") into bullets.
+ * Applies only when every line carries a marker.
+ * @param blocks - Blocks in document order.
+ * @returns The same blocks, typed bullet paragraphs split into bullets.
+ */
+function splitTypedBullets(
+  blocks: ClassifiedBlockType[],
+): ClassifiedBlockType[] {
+  return blocks.flatMap((block) => {
+    if (block.isHeading || block.kind !== "paragraph") return block;
+
+    const lines = block.text.split("\n").map((line) => line.trim());
+
+    if (!lines.every((line) => TYPED_BULLET_MARKER.test(line))) return block;
+
+    return lines.map((line) => ({
+      kind: "bullet" as const,
+      text: line.replace(TYPED_BULLET_MARKER, ""),
+      isHeading: false,
+    }));
+  });
 }
 
 /**
@@ -540,20 +568,22 @@ function classifyHeading(
  * @returns Lowercased heading without decoration.
  */
 function normalizeHeading(heading: string): string {
-  return normalizeWhitespace(heading)
-    .toLowerCase()
-    .replaceAll("’", "'")
-    .replaceAll("&", "and")
-    // Employers decorate headings: "💻 Tech Stack" is the same heading as
-    // "Tech Stack" and was missing the table on the emoji alone.
-    .replace(/^[\p{Extended_Pictographic}\p{So}\uFE0F\s]+/u, "")
-    // "Nice-to-haves" and "Nice to have" are the same heading, and the
-    // hyphenated form was missing the table on punctuation alone.
-    .replace(/[-–—/]+/g, " ")
-    .replace(/^[\s*•]+/, "")
-    .replace(/[\s:?!.]+$/, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return (
+    normalizeWhitespace(heading)
+      .toLowerCase()
+      .replaceAll("’", "'")
+      .replaceAll("&", "and")
+      // Employers decorate headings: "💻 Tech Stack" is the same heading as
+      // "Tech Stack" and was missing the table on the emoji alone.
+      .replace(/^[\p{Extended_Pictographic}\p{So}\uFE0F\s]+/u, "")
+      // "Nice-to-haves" and "Nice to have" are the same heading, and the
+      // hyphenated form was missing the table on punctuation alone.
+      .replace(/[-–—/]+/g, " ")
+      .replace(/^[\s*•]+/, "")
+      .replace(/[\s:?!.]+$/, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 }
 
 /**

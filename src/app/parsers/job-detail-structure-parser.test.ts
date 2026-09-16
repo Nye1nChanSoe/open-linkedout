@@ -35,8 +35,9 @@ function countListItems(node: Node): number {
       : 0);
 }
 
+// Typed bullet markers are removed by the parser, so they are not compared.
 function compact(text: string): string {
-  return text.replace(/\s+/g, "");
+  return text.replace(/[\s•*-]+/g, "");
 }
 
 for (const item of fixtures) {
@@ -61,7 +62,7 @@ for (const item of fixtures) {
       assert.equal(sections.length, 1);
       assert.equal(sections[0].sectionType, "requirements");
       assert.equal(sections[0].heading, "Requirements added by the job poster");
-      assert.ok(sections[0].blocks.every((block) => block.text.startsWith("•")));
+      assert.ok(sections[0].blocks.every((block) => block.kind === "bullet" && !block.text.startsWith("•")));
     }
   });
 }
