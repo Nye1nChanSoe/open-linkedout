@@ -1,3 +1,5 @@
+import type { ChunkKindType, ChunkOwnerKindType } from "@/types/chunk.type.js";
+
 export type EmbeddingPoolingType = "cls" | "mean";
 
 /**
@@ -15,4 +17,28 @@ export type EmbeddingProfileType = {
   dtype: string;
   queryPrefix: string;
   passagePrefix: string;
+};
+
+export type ChunkNeedingEmbeddingType = {
+  id: number;
+  owner_kind: ChunkOwnerKindType;
+  text: string;
+  text_hash: string;
+};
+
+export type ChunkEmbeddingInputType = {
+  chunkId: number;
+  ownerKind: ChunkOwnerKindType;
+  vector: Float32Array;
+};
+
+export type ChunkSearchHitType = {
+  chunk_id: number;
+  owner_id: number;
+  section: string;
+  kind: ChunkKindType;
+  text: string;
+  source_path: string;
+  /** Cosine distance: 1 - similarity. */
+  distance: number;
 };

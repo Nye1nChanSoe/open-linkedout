@@ -1,4 +1,6 @@
 import Database from "better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
+
 import config from "@/config/database.config.js";
 import type { DatabaseConnectionType } from "@/types/database.type.js";
 
@@ -14,6 +16,8 @@ export function createDatabaseConnection(): DatabaseConnectionType {
   database.pragma(
     `foreign_keys = ${config.DATABASE_FOREIGN_KEYS_ENABLED ? "ON" : "OFF"}`,
   );
+
+  sqliteVec.load(database);
 
   return database;
 }

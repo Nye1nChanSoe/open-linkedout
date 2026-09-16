@@ -2,6 +2,8 @@ import { BrowserSession } from "@/app/browser/browser-session.js";
 import { AppEventBus } from "@/app/events/app-event-bus.js";
 import { CampaignService } from "@/app/services/campaign.service.js";
 import { ResumeService } from "@/app/services/resume.service.js";
+import type { EmbeddingClientContract } from "@/contracts/embedding-client.contract.js";
+import { ChunkEmbeddingRepository } from "@database/repositories/chunk-embedding.repository.js";
 import { JobDetailRepository } from "@database/repositories/job-detail.repository.js";
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
 import { JobRepository } from "@database/repositories/job.repository.js";
@@ -21,4 +23,8 @@ export type ServerDependenciesType = {
   resumeRepository: ResumeRepository;
   resumeExtractionRepository: ResumeExtractionRepository;
   schedulerTaskRepository: SchedulerTaskRepository;
+  chunkEmbeddingRepository: ChunkEmbeddingRepository;
+
+  /** Absent when the embedding model is not installed. */
+  embeddingClient?: EmbeddingClientContract;
 };

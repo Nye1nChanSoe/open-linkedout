@@ -1,0 +1,159 @@
+EMBEDDING FLOW
+==============
+
+npm run setup:models
+  -> restruct --install-models                 (restruct's own models)
+  -> setup:embedding-model                     (src/commands/setup.embedding-model.ts)
+       -> for each file in embedding.config MODEL_FILES
+            present with right size + sha256?  -> skip
+            otherwise                          -> download <file>.part
+                                               -> sha256 matches? rename : delete + fail
+       -> models/bge-small-en-v1.5  (BAAI/bge-small-en-v1.5 @ 5c38ec7c...)
+
+
+STARTUP (src/main.ts)
+---------------------
+The migration loads sqlite-vec, and the embedder is created, 
+falling back to "not installed" when the model is missing.
+
+runMigrations
+  -> createDatabaseConnection -> sqliteVec.load   (every connection, migrations too)
+  -> 010_vectors.sql          -> vec_chunks + chunk_embeddings + delete trigger
+
+createEmbeddingClient
+  -> new OnnxEmbedder
+       -> readEmbeddingProfile   (reads model files, NOT the weights)
+            model installed? -> embedder, profileId logged on the Versions line
+            missing?         -> undefined, app still runs, semantic search -> 503
+
+  NOTE: the ONNX session and tokenizer are NOT loaded here. They load on the
+        first embed call (~300 ms), so startup never pays for the model.
+
+
+SOURCES OF TEXT
+---------------
+how the job chunker and resume chunker turn structures into chunks, with example source_paths.
+
+job_structures.structure_json     (parser, see job-detail-flow.txt)
+  -> chunkJobStructure            (src/app/chunkers/job-chunker.ts)
+       one block                 -> one chunk      $.sections[2].blocks[0]
+       wrapped sentence          -> joined         $.sections[0].blocks[0:4]
+       multi-line paragraph      -> one per line   ...blocks[5].lines[2]
+       over MAX_CHUNK_CHARS (800) -> sentence packs ...blocks[0].sentences[0:8]
+       headings                  -> NOT chunks, they become `section`
+
+resume_extractions.resume_json    (restruct v1, see resume.schema.json)
+  -> chunkResume                  (src/app/chunkers/resume-chunker.ts)
+       summary content            -> paragraph | bullet   (subheadings skipped)
+       entry paragraphs / bullets -> paragraph | bullet   $.experience[2].bullets[1]
+       skills groups              -> skill                $.skills[0].bullets[0]
+       newline inside text        -> space (a PDF line wrap, not a new item)
+       titles, companies, dates, urls, header_profile -> NOT chunks
+
+  NOTE: both chunkers are pure. No database, no model.
+        npx tsx src/commands/tune.chunker.ts checks both for lost text
+        and duplicate source paths.
+
+
+EMBEDDING PROFILE (src/app/embeddings/embedding-profile.ts)
+-----------------------------------------------------------
+where each field comes from and how the id is built.
+
+readEmbeddingProfile
+  repository + revision + modelSha256   <- embedding.config
+  pooling (cls) + dimensions (384)      <- models/.../1_Pooling/config.json
+  maxSeqLength (512)                    <- models/.../sentence_bert_config.json
+  dtype, queryPrefix, passagePrefix     <- embedding.config
+toEmbeddingProfileId -> bge-small-en-v1.5-edf093efae2f   (sha256 of sorted profile)
+
+  Any field changes -> new id -> every stored vector counts as stale.
+
+
+EMBEDDER (src/app/embeddings/onnx-embedder.ts)
+----------------------------------------------
+prefixes, batches of 8, one batch at a time, tokenizer, pooling, normalization, 
+and the fixture check (compare values, not cosine).
+
+embedPassages(texts)                  embedQuery(text)
+  passagePrefix ("") + text             queryPrefix + text
+  split into BATCH_SIZE (8)             one text
+       |                                     |
+       +------------------+------------------+
+                          |
+                  queue (one batch at a time)
+                          |
+                  embedBatch
+                    -> tokenizer   (pad to longest, truncate at 512)
+                    -> ort session (last hidden state)
+                    -> pool        cls: first token | mean: masked average
+                    -> normalize   (length 1)
+                    -> Float32Array[384]
+
+  CHECK: fixtures/embedding-reference.json. Right pooling differs by ~5e-6,
+         mean pooling by ~0.2. Compare values, NOT cosine (wrong pooling
+         still scores 0.92-0.95).
+
+
+STORAGE
+-------
+how re-chunking removes old vectors through the trigger and cascade, 
+and the embedding repository's methods.
+
+ChunkRepository.replaceForOwner(owner, rows)     (one transaction)
+  -> DELETE chunks for owner
+       -> trigger chunks_delete_vector -> DELETE vec_chunks row
+       -> FK ON DELETE CASCADE         -> DELETE chunk_embeddings row
+  -> INSERT new chunks                 (new ids, no vectors yet)
+
+ChunkEmbeddingRepository
+  listChunksNeedingEmbedding(profileId)  -> no chunk_embeddings row, or another profile
+  upsertMany(rows, profileId)            (one transaction)
+    -> DELETE + INSERT vec_chunks        (vec0 has no upsert, id bound as INTEGER)
+    -> UPSERT chunk_embeddings           (profile, dim, embedded_at)
+  deleteOrphanVectors                    -> should always be 0; checks the trigger
+
+vec_chunks   chunk_id | owner_kind (PARTITION KEY) | embedding FLOAT[384] cosine
+
+
+SEMANTIC SEARCH
+---------------
+the endpoint step by step, including the 400/503 cases, 
+the profile filter, and the note that it finds topics, not specific technologies.
+
+GET /api/jobs/semantic?q=...&k=20        (src/server/routes/jobs.routes.ts)
+  -> no q?             -> 400
+  -> no embedder?      -> 503
+  -> embedQuery(q)
+  -> ChunkEmbeddingRepository.search(vector, profileId, "job", k <= 50)
+       -> vec_chunks k-NN inside owner_kind = job
+       -> JOIN chunks                          (text, section, source_path)
+       -> JOIN chunk_embeddings on profileId   (stale vectors dropped, may return < k)
+  -> JobRepository.findById per hit            (title, company)
+  -> { hits: [{ jobId, title, company, similarity, section, kind, text, sourcePath }] }
+
+  NOTE: similarity finds the topic, not the technology. "Go microservices
+        backend" returns microservices lines that never mention Go. Exact
+        technology matching is Phase 3's job, not this endpoint's.
+
+
+-------------------------------------------------------------------------
+Later Tasks (2.5, not built yet)
+=> nothing calls the chunkers or writes vectors in the running app yet
+-------------------------------------------------------------------------
+job_structure done  --+
+                      +--> chunk [task]
+resume_extract done --+      -> load structure / extraction
+                             -> chunkJobStructure | chunkResume
+                             -> add text_hash (sha256) + chunker_version
+                             -> ChunkRepository.replaceForOwner
+                             -> enqueue embed
+
+embed [task]
+  -> listChunksNeedingEmbedding(profileId)
+  -> same text_hash already embedded under this profile? -> copy that vector
+  -> otherwise embedPassages
+  -> upsertMany
+
+startup sweep (beside jobStructureService.queueOutdated)
+  -> chunk where chunks missing or chunker_version is stale
+  -> embed where embedding_profile is stale

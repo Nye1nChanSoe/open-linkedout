@@ -5,10 +5,7 @@ import { BrowserSession } from "@/app/browser/browser-session.js";
 import { JOB_CHUNKER_VERSION } from "@/app/chunkers/job-chunker.js";
 import { RESUME_CHUNKER_VERSION } from "@/app/chunkers/resume-chunker.js";
 import { RestructRunner } from "@/app/documents/restruct-runner.js";
-import {
-  readEmbeddingProfile,
-  toEmbeddingProfileId,
-} from "@/app/embeddings/embedding-profile.js";
+import { OnnxEmbedder } from "@/app/embeddings/onnx-embedder.js";
 import { AppEventBus } from "@/app/events/app-event-bus.js";
 import {
   JOB_STRUCTURE_PARSER_VERSION,
@@ -38,6 +35,7 @@ import { createApp } from "@/server/app.js";
 import type { ServerDependenciesType } from "@/server/dependencies.js";
 import { createDatabaseConnection } from "@database/connection.js";
 import { CampaignRepository } from "@database/repositories/campaign.repository.js";
+import { ChunkEmbeddingRepository } from "@database/repositories/chunk-embedding.repository.js";
 import { JobDetailRepository } from "@database/repositories/job-detail.repository.js";
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
 import { JobStructureRepository } from "@database/repositories/job-structure.repository.js";
@@ -62,6 +60,8 @@ const jobStructureRepository = new JobStructureRepository(database);
 const resumeRepository = new ResumeRepository(database);
 const resumeExtractionRepository = new ResumeExtractionRepository(database);
 const schedulerTaskRepository = new SchedulerTaskRepository(database);
+const chunkEmbeddingRepository = new ChunkEmbeddingRepository(database);
+const embeddingClient = createEmbeddingClient();
 
 const schedulerTaskService = new SchedulerTaskService(schedulerTaskRepository);
 const campaignService = new CampaignService(
@@ -96,6 +96,8 @@ const dependencies: ServerDependenciesType = {
   resumeRepository,
   resumeExtractionRepository,
   schedulerTaskRepository,
+  chunkEmbeddingRepository,
+  embeddingClient,
 };
 
 /**
@@ -257,15 +259,21 @@ console.info(
   pc.dim("| resume schema"),
   pc.cyan(restructConfig.EXPECTED_SCHEMA_VERSION),
   pc.dim("| embedding"),
-  pc.cyan(readEmbeddingProfileIdForLog()),
+  pc.cyan(
+    embeddingClient?.profileId ??
+      "not installed (npm run setup:embedding-model)",
+  ),
 );
 
-/** The app runs without the model; only embedding needs it. */
-function readEmbeddingProfileIdForLog(): string {
+/**
+ * The app runs without the model; only embedding needs it.
+ * @returns Embedder, or undefined when the model is not installed.
+ */
+function createEmbeddingClient(): OnnxEmbedder | undefined {
   try {
-    return toEmbeddingProfileId(readEmbeddingProfile());
+    return new OnnxEmbedder();
   } catch {
-    return "not installed (npm run setup:embedding-model)";
+    return undefined;
   }
 }
 

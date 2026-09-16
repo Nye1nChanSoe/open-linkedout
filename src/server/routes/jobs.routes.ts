@@ -48,6 +48,53 @@ export function createJobRoutes(dependencies: ServerDependenciesType) {
     });
   });
 
+  routes.get("/semantic", async (context) => {
+    const query = readText(context, "q");
+    const k = Math.min(50, Math.max(1, readNumber(context, "k") ?? 20));
+    const { embeddingClient, chunkEmbeddingRepository, jobRepository } =
+      dependencies;
+
+    if (!query) {
+      return context.json({ error: "Query parameter q is required." }, 400);
+    }
+
+    if (!embeddingClient) {
+      return context.json(
+        {
+          error:
+            "Embedding model is not installed. Run npm run setup:embedding-model.",
+        },
+        503,
+      );
+    }
+
+    const hits = chunkEmbeddingRepository.search(
+      await embeddingClient.embedQuery(query),
+      embeddingClient.profileId,
+      "job",
+      k,
+    );
+
+    return context.json({
+      query,
+      embeddingProfile: embeddingClient.profileId,
+      hits: hits.map((hit) => {
+        const job = jobRepository.findById(hit.owner_id);
+
+        return {
+          jobId: hit.owner_id,
+          title: job?.title ?? null,
+          company: job?.company ?? null,
+          similarity: 1 - hit.distance,
+          section: hit.section,
+          kind: hit.kind,
+          text: hit.text,
+          sourcePath: hit.source_path,
+        };
+      }),
+    });
+  });
+
   routes.get("/:id", (context) => {
     const jobId = readIdParam(context, "id");
 
