@@ -1,7 +1,9 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import pc from "picocolors";
 
 import { ExtractionError } from "@/app/errors/extraction-error.js";
+import { SchedulerTaskService } from "@/app/services/scheduler-task.service.js";
 import restructConfig from "@/config/restruct.config.js";
 import type { ResumeExtractorContract } from "@/contracts/resume-extractor.contract.js";
 import { runRepositoryOperationSafely } from "@/utils/utils.js";
@@ -17,7 +19,32 @@ export class ResumeExtractionService {
     private readonly resumeRepository: ResumeRepository,
     private readonly resumeExtractionRepository: ResumeExtractionRepository,
     private readonly resumeExtractor: ResumeExtractorContract,
+    private readonly schedulerTaskService: SchedulerTaskService,
   ) {}
+
+  /**
+   * Queues extraction for every resume whose extraction is missing or stale.
+   * Uses the pinned version: the document worker refuses to run any other.
+   * @returns Number of extraction tasks queued.
+   */
+  queueOutdated(): number {
+    const resumeIds =
+      this.resumeExtractionRepository.listResumeIdsNeedingExtraction(
+        restructConfig.PINNED_VERSION,
+      );
+
+    for (const resumeId of resumeIds) {
+      this.schedulerTaskService.createResumeExtractTask(resumeId);
+    }
+
+    console.info(
+      pc.blueBright("Queued resume extraction:"),
+      pc.cyan(`${resumeIds.length} resumes`),
+      pc.dim(`| restruct ${restructConfig.PINNED_VERSION}`),
+    );
+
+    return resumeIds.length;
+  }
 
   async execute(resumeId: number) {
     const resume = runRepositoryOperationSafely(`load resume ${resumeId}`, () =>

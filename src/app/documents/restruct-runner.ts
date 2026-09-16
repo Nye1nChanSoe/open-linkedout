@@ -129,7 +129,10 @@ export class RestructRunner implements ResumeExtractorContract {
       stderr?: string;
       message?: string;
     };
-    const detail = failure.stderr?.trim() || failure.message || "The resume extractor failed.";
+    const detail =
+      failure.stderr?.trim() ||
+      failure.message ||
+      "The resume extractor failed.";
 
     if (failure.code === "ENOENT") {
       return new ExtractionError(

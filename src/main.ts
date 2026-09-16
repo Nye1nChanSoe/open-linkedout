@@ -2,8 +2,13 @@ import { serve } from "@hono/node-server";
 import pc from "picocolors";
 
 import { BrowserSession } from "@/app/browser/browser-session.js";
+import { JOB_CHUNKER_VERSION } from "@/app/chunkers/job-chunker.js";
 import { RestructRunner } from "@/app/documents/restruct-runner.js";
 import { AppEventBus } from "@/app/events/app-event-bus.js";
+import {
+  JOB_STRUCTURE_PARSER_VERSION,
+  JOB_STRUCTURE_SCHEMA_VERSION,
+} from "@/app/parsers/job-detail-structure-parser.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { Scheduler } from "@/app/scheduler/scheduler.js";
 import { DiscoveryRunTask } from "@/app/scheduler/tasks/discovery-run.task.js";
@@ -61,6 +66,13 @@ const campaignService = new CampaignService(
   appEventBus,
 );
 const resumeService = new ResumeService(resumeRepository, schedulerTaskService);
+const resumeExtractor = new RestructRunner();
+const resumeExtractionService = new ResumeExtractionService(
+  resumeRepository,
+  resumeExtractionRepository,
+  resumeExtractor,
+  schedulerTaskService,
+);
 const jobStructureService = new JobStructureService(
   jobRepository,
   jobDetailRepository,
@@ -136,8 +148,6 @@ async function createScrapeScheduler(): Promise<Scheduler> {
  * TODO: move to factory
  */
 async function createDocumentScheduler(): Promise<Scheduler> {
-  const resumeExtractor = new RestructRunner();
-
   // `--version` is answered before the extractor loads its weights, so
   // catching a mismatched install here costs nothing.
   const extractorVersion = await resumeExtractor.readVersion();
@@ -149,17 +159,15 @@ async function createDocumentScheduler(): Promise<Scheduler> {
     );
   }
 
+  console.info(
+    pc.blueBright("Resume extractor:"),
+    pc.cyan(`restruct ${extractorVersion}`),
+    pc.dim("| matches pinned"),
+  );
+
   return new Scheduler(
     schedulerTaskRepository,
-    [
-      new ResumeExtractTask(
-        new ResumeExtractionService(
-          resumeRepository,
-          resumeExtractionRepository,
-          resumeExtractor,
-        ),
-      ),
-    ],
+    [new ResumeExtractTask(resumeExtractionService)],
     campaignService,
     appEventBus,
   );
@@ -189,6 +197,7 @@ async function createParserScheduler(): Promise<Scheduler> {
 // queueing its parse, and every future parser version. Startup is the right
 // place for it — the same reason recoverRunningTasks() lives there.
 jobStructureService.queueOutdated();
+resumeExtractionService.queueOutdated();
 
 const scrapeWorker = new SchedulerWorker(
   "Scrape worker",
@@ -226,6 +235,20 @@ console.info(
   pc.green("LinkedOut running"),
   pc.dim(":"),
   pc.cyan(`http://${serverConfig.HOST}:${serverConfig.PORT}`),
+);
+
+console.info(
+  pc.blueBright("Versions:"),
+  pc.dim("parser"),
+  pc.cyan(JOB_STRUCTURE_PARSER_VERSION),
+  pc.dim("| structure schema"),
+  pc.cyan(JOB_STRUCTURE_SCHEMA_VERSION),
+  pc.dim("| chunker"),
+  pc.cyan(JOB_CHUNKER_VERSION),
+  pc.dim("| restruct pinned"),
+  pc.cyan(restructConfig.PINNED_VERSION),
+  pc.dim("| resume schema"),
+  pc.cyan(restructConfig.EXPECTED_SCHEMA_VERSION),
 );
 
 const workers = Promise.all([

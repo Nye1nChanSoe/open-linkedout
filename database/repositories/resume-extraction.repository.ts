@@ -15,6 +15,11 @@ export class ResumeExtractionRepository {
     DBResumeExtractionRowType
   >;
 
+  private readonly listResumeIdsNeedingExtractionStatement: BetterSqlite3.Statement<
+    [{ extractor_version: string }],
+    { resume_id: number }
+  >;
+
   private readonly insertResumeExtractionStatement: BetterSqlite3.Statement<
     [InsertResumeExtractionParamsType]
   >;
@@ -29,6 +34,25 @@ export class ResumeExtractionRepository {
       SELECT *
       FROM resume_extractions
       WHERE resume_id = @resume_id;
+    `,
+    );
+
+    /**
+     * Resumes with no extraction, or one from another extractor version or
+     * an older copy of the file. Failed and needs-OCR resumes are left alone.
+     */
+    this.listResumeIdsNeedingExtractionStatement = database.prepare(
+      `
+      SELECT r.id AS resume_id
+      FROM resumes r
+      LEFT JOIN resume_extractions e ON e.resume_id = r.id
+      WHERE r.processing_status NOT IN ('failed', 'needs_ocr')
+        AND (
+          e.resume_id IS NULL
+          OR e.extractor_version != @extractor_version
+          OR e.source_content_hash != r.content_hash
+        )
+      ORDER BY r.id;
     `,
     );
 
@@ -81,6 +105,16 @@ export class ResumeExtractionRepository {
    */
   findByResumeId(resumeId: number) {
     return this.findByResumeIdStatement.get({ resume_id: resumeId });
+  }
+
+  /**
+   * @param extractorVersion - Version the sweep considers current.
+   * @returns Resume identifiers needing extraction, oldest first.
+   */
+  listResumeIdsNeedingExtraction(extractorVersion: string): number[] {
+    return this.listResumeIdsNeedingExtractionStatement
+      .all({ extractor_version: extractorVersion })
+      .map((row) => row.resume_id);
   }
 
   /**

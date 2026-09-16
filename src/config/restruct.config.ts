@@ -24,7 +24,7 @@ const config = {
    * Pinned in package.json and verified at scheduler startup.
    * A mismatch changes extracted text, and everything derived from it.
    */
-  PINNED_VERSION: "0.2.3",
+  PINNED_VERSION: "0.3.2",
 
   /**
    * Shape of resume.json this application knows how to read.
