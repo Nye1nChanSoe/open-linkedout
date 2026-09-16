@@ -5,6 +5,10 @@ import { BrowserSession } from "@/app/browser/browser-session.js";
 import { JOB_CHUNKER_VERSION } from "@/app/chunkers/job-chunker.js";
 import { RESUME_CHUNKER_VERSION } from "@/app/chunkers/resume-chunker.js";
 import { RestructRunner } from "@/app/documents/restruct-runner.js";
+import {
+  readEmbeddingProfile,
+  toEmbeddingProfileId,
+} from "@/app/embeddings/embedding-profile.js";
 import { AppEventBus } from "@/app/events/app-event-bus.js";
 import {
   JOB_STRUCTURE_PARSER_VERSION,
@@ -252,7 +256,18 @@ console.info(
   pc.cyan(restructConfig.PINNED_VERSION),
   pc.dim("| resume schema"),
   pc.cyan(restructConfig.EXPECTED_SCHEMA_VERSION),
+  pc.dim("| embedding"),
+  pc.cyan(readEmbeddingProfileIdForLog()),
 );
+
+/** The app runs without the model; only embedding needs it. */
+function readEmbeddingProfileIdForLog(): string {
+  try {
+    return toEmbeddingProfileId(readEmbeddingProfile());
+  } catch {
+    return "not installed (npm run setup:embedding-model)";
+  }
+}
 
 const workers = Promise.all([
   documentWorker.start(),
