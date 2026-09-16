@@ -34,6 +34,12 @@ export type ChunkOwnerType = {
 
 export type InsertChunkParamsType = Omit<DBChunkRowType, "id">;
 
+/** One row for `replaceForOwner`; the owner columns come from its `owner` argument. */
+export type ChunkRowInputType = Omit<
+  InsertChunkParamsType,
+  "owner_kind" | "owner_id"
+>;
+
 export type FindChunksByOwnerParamsType = {
   owner_kind: ChunkOwnerKindType;
   owner_id: number;

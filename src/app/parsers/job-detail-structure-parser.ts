@@ -197,7 +197,7 @@ export function parseJobStructure(
   };
 }
 
-const TYPED_BULLET_MARKER = /^[•\-*]\s+/;
+export const TYPED_BULLET_MARKER = /^[•\-*]\s+/;
 
 /**
  * Turns paragraphs written as typed bullets ("• …", "- …") into bullets.
