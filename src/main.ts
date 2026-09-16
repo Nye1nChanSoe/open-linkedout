@@ -13,11 +13,15 @@ import {
 } from "@/app/parsers/job-detail-structure-parser.js";
 import { RetryPolicy } from "@/app/retry/retry-policy.js";
 import { Scheduler } from "@/app/scheduler/scheduler.js";
+import { ChunkTask } from "@/app/scheduler/tasks/chunk.task.js";
 import { DiscoveryRunTask } from "@/app/scheduler/tasks/discovery-run.task.js";
+import { EmbedTask } from "@/app/scheduler/tasks/embed.task.js";
 import { JobDetailScrapeTask } from "@/app/scheduler/tasks/job-detail-scrape.task.js";
 import { JobStructureTask } from "@/app/scheduler/tasks/job-structure.task.js";
 import { ResumeExtractTask } from "@/app/scheduler/tasks/resume-extract.task.js";
 import { CampaignService } from "@/app/services/campaign.service.js";
+import { ChunkService } from "@/app/services/chunk.service.js";
+import { EmbeddingService } from "@/app/services/embedding.service.js";
 import { PersistDiscoveredJobsService } from "@/app/services/persist-discovered-jobs.service.js";
 import { PersistJobDetailService } from "@/app/services/persist-job-detail.service.js";
 import { ResumeExtractionService } from "@/app/services/resume-extraction.service.js";
@@ -36,6 +40,7 @@ import type { ServerDependenciesType } from "@/server/dependencies.js";
 import { createDatabaseConnection } from "@database/connection.js";
 import { CampaignRepository } from "@database/repositories/campaign.repository.js";
 import { ChunkEmbeddingRepository } from "@database/repositories/chunk-embedding.repository.js";
+import { ChunkRepository } from "@database/repositories/chunk.repository.js";
 import { JobDetailRepository } from "@database/repositories/job-detail.repository.js";
 import { JobDiscoveryRepository } from "@database/repositories/job-discovery.repository.js";
 import { JobStructureRepository } from "@database/repositories/job-structure.repository.js";
@@ -60,6 +65,7 @@ const jobStructureRepository = new JobStructureRepository(database);
 const resumeRepository = new ResumeRepository(database);
 const resumeExtractionRepository = new ResumeExtractionRepository(database);
 const schedulerTaskRepository = new SchedulerTaskRepository(database);
+const chunkRepository = new ChunkRepository(database);
 const chunkEmbeddingRepository = new ChunkEmbeddingRepository(database);
 const embeddingClient = createEmbeddingClient();
 
@@ -84,6 +90,19 @@ const jobStructureService = new JobStructureService(
   jobStructureRepository,
   schedulerTaskService,
 );
+const chunkService = new ChunkService(
+  chunkRepository,
+  jobStructureRepository,
+  resumeExtractionRepository,
+  schedulerTaskService,
+);
+const embeddingService =
+  embeddingClient &&
+  new EmbeddingService(
+    chunkEmbeddingRepository,
+    embeddingClient,
+    schedulerTaskService,
+  );
 
 const dependencies: ServerDependenciesType = {
   appEventBus,
@@ -193,7 +212,7 @@ async function createDocumentScheduler(): Promise<Scheduler> {
 async function createParserScheduler(): Promise<Scheduler> {
   return new Scheduler(
     schedulerTaskRepository,
-    [new JobStructureTask(jobStructureService)],
+    [new JobStructureTask(jobStructureService), new ChunkTask(chunkService)],
     campaignService,
     appEventBus,
   );
@@ -205,6 +224,8 @@ async function createParserScheduler(): Promise<Scheduler> {
 // place for it — the same reason recoverRunningTasks() lives there.
 jobStructureService.queueOutdated();
 resumeExtractionService.queueOutdated();
+chunkService.queueOutdated();
+embeddingService?.queueOutdated();
 
 const scrapeWorker = new SchedulerWorker(
   "Scrape worker",
@@ -218,7 +239,7 @@ const scrapeWorker = new SchedulerWorker(
 
 const parserWorker = new SchedulerWorker(
   "Parser worker",
-  ["job_structure"],
+  ["job_structure", "chunk"],
   schedulerTaskRepository,
   createParserScheduler,
   serverConfig.WORKER_IDLE_POLL_INTERVAL_MS,
@@ -231,6 +252,24 @@ const documentWorker = new SchedulerWorker(
   createDocumentScheduler,
   serverConfig.WORKER_IDLE_POLL_INTERVAL_MS,
 );
+
+// Its own worker: one embed task can run for tens of seconds, and parsing
+// and chunking should not wait behind it. Absent without the model.
+const embeddingWorker =
+  embeddingService &&
+  new SchedulerWorker(
+    "Embedding worker",
+    ["embed"],
+    schedulerTaskRepository,
+    async () =>
+      new Scheduler(
+        schedulerTaskRepository,
+        [new EmbedTask(embeddingService)],
+        campaignService,
+        appEventBus,
+      ),
+    serverConfig.WORKER_IDLE_POLL_INTERVAL_MS,
+  );
 
 const server = serve({
   fetch: createApp(dependencies).fetch,
@@ -281,6 +320,7 @@ const workers = Promise.all([
   documentWorker.start(),
   scrapeWorker.start(),
   parserWorker.start(),
+  embeddingWorker?.start(),
 ]);
 
 let isShuttingDown = false;
@@ -298,6 +338,7 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
   scrapeWorker.stop();
   parserWorker.stop();
   documentWorker.stop();
+  embeddingWorker?.stop();
   server.close();
 
   await browserSession.close();

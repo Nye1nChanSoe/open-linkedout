@@ -33,6 +33,16 @@ export class ChunkEmbeddingRepository {
     ChunkNeedingEmbeddingType
   >;
 
+  private readonly findVectorByTextHashStatement: BetterSqlite3.Statement<
+    [{ text_hash: string; embedding_profile: string }],
+    { chunk_id: number }
+  >;
+
+  private readonly findVectorStatement: BetterSqlite3.Statement<
+    [{ chunk_id: number }],
+    { embedding: Buffer }
+  >;
+
   private readonly deleteOrphanVectorsStatement: BetterSqlite3.Statement<[]>;
 
   private readonly searchStatement: BetterSqlite3.Statement<
@@ -85,6 +95,21 @@ export class ChunkEmbeddingRepository {
       ORDER BY c.id
       LIMIT @limit;
     `,
+    );
+
+    this.findVectorByTextHashStatement = database.prepare(
+      `
+      SELECT c.id AS chunk_id
+      FROM chunks c
+      JOIN chunk_embeddings e ON e.chunk_id = c.id
+      WHERE c.text_hash = @text_hash
+        AND e.embedding_profile = @embedding_profile
+      LIMIT 1;
+    `,
+    );
+
+    this.findVectorStatement = database.prepare(
+      `SELECT embedding FROM vec_chunks WHERE chunk_id = @chunk_id;`,
     );
 
     this.deleteOrphanVectorsStatement = database.prepare(
@@ -166,6 +191,27 @@ export class ChunkEmbeddingRepository {
       embedding_profile: profileId,
       limit,
     });
+  }
+
+  /**
+   * Finds a stored vector for identical text under the same profile, so the
+   * same bullet in two documents is embedded once.
+   * @param textHash - Hash of the chunk text.
+   * @param profileId - Profile the vector must come from.
+   * @returns Vector, if one exists.
+   */
+  findVectorByTextHash(
+    textHash: string,
+    profileId: string,
+  ): Float32Array | undefined {
+    const match = this.findVectorByTextHashStatement.get({
+      text_hash: textHash,
+      embedding_profile: profileId,
+    });
+    const row = match && this.findVectorStatement.get(match);
+
+    // Copied into a fresh buffer: a Float32Array needs a 4-byte-aligned offset.
+    return row && new Float32Array(new Uint8Array(row.embedding).buffer);
   }
 
   /**

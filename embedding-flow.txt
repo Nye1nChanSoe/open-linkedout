@@ -29,6 +29,21 @@ createEmbeddingClient
   NOTE: the ONNX session and tokenizer are NOT loaded here. They load on the
         first embed call (~300 ms), so startup never pays for the model.
 
+sweeps (queue work for anything stale, then the workers pick it up)
+  -> jobStructureService.queueOutdated      parser_version changed / never parsed
+  -> resumeExtractionService.queueOutdated  restruct version changed / never extracted
+  -> chunkService.queueOutdated             no chunks at the current chunker version
+  -> embeddingService?.queueOutdated        any chunk without a current-profile vector
+                                            (skipped when the model is missing)
+
+workers
+  "Parser worker"     job_structure, chunk     (cheap, no model)
+  "Document worker"   resume_extract
+  "Embedding worker"  embed                    (only when the model is installed)
+
+  NOTE: embed has its own worker because one task can run ~25 s on a full
+        corpus, and parsing and chunking should not wait behind it.
+
 
 SOURCES OF TEXT
 ---------------
@@ -99,6 +114,7 @@ STORAGE
 how re-chunking removes old vectors through the trigger and cascade, 
 and the embedding repository's methods.
 
+ChunkRepository.listOwnerIdsNeedingChunking(kind, version)  -> sweep: no chunks at that version
 ChunkRepository.replaceForOwner(owner, rows)     (one transaction)
   -> DELETE chunks for owner
        -> trigger chunks_delete_vector -> DELETE vec_chunks row
@@ -110,6 +126,7 @@ ChunkEmbeddingRepository
   upsertMany(rows, profileId)            (one transaction)
     -> DELETE + INSERT vec_chunks        (vec0 has no upsert, id bound as INTEGER)
     -> UPSERT chunk_embeddings           (profile, dim, embedded_at)
+  findVectorByTextHash(hash, profileId)  -> a stored vector for identical text
   deleteOrphanVectors                    -> should always be 0; checks the trigger
 
 vec_chunks   chunk_id | owner_kind (PARTITION KEY) | embedding FLOAT[384] cosine
@@ -136,24 +153,56 @@ GET /api/jobs/semantic?q=...&k=20        (src/server/routes/jobs.routes.ts)
         technology matching is Phase 3's job, not this endpoint's.
 
 
--------------------------------------------------------------------------
-Later Tasks (2.5, not built yet)
-=> nothing calls the chunkers or writes vectors in the running app yet
--------------------------------------------------------------------------
-job_structure done  --+
-                      +--> chunk [task]
-resume_extract done --+      -> load structure / extraction
-                             -> chunkJobStructure | chunkResume
-                             -> add text_hash (sha256) + chunker_version
-                             -> ChunkRepository.replaceForOwner
-                             -> enqueue embed
+TASKS
+-----
+job_structure done  (JobStructureService.execute)    --+
+                                                       +--> chunk [task]
+resume_extract done (ResumeExtractionService.execute) --+
 
-embed [task]
-  -> listChunksNeedingEmbedding(profileId)
-  -> same text_hash already embedded under this profile? -> copy that vector
-  -> otherwise embedPassages
-  -> upsertMany
+chunk [task]   payload { owner_kind, owner_id }       (ChunkTask -> ChunkService)
+  -> load job_structures row | resume_extractions row
+       missing? -> "Skipped chunking" -> STOP
+  -> chunkJobStructure | chunkResume
+  -> add text_hash (sha256) + chunker_version + created_at
+  -> same as stored chunks?  (source_path, text_hash, section, kind, version)
+       yes -> "Chunks unchanged" -> STOP        (keeps the existing vectors)
+       no  -> ChunkRepository.replaceForOwner   (old vectors removed by trigger)
+           -> SchedulerTaskService.ensureEmbedTask
+                an embed task already pending? -> nothing
+                otherwise                      -> one embed task
 
-startup sweep (beside jobStructureService.queueOutdated)
-  -> chunk where chunks missing or chunker_version is stale
-  -> embed where embedding_profile is stale
+embed [task]   no payload, drains everything          (EmbedTask -> EmbeddingService)
+  -> deleteOrphanVectors            (warns if > 0; the trigger should leave none)
+  -> loop in rounds of CHUNKS_PER_ROUND (256):
+       -> listChunksNeedingEmbedding(profileId)
+            empty? -> STOP
+       -> per distinct text_hash:
+            vector stored under this profile? -> reuse it
+            otherwise                         -> embed it once
+       -> embedPassages(texts to embed)       (batches of 8)
+       -> upsertMany                          (one commit per round)
+       -> "Embedded chunks: N so far | X embedded, Y reused"
+
+  NOTE: a round commits before the next starts, so a stopped app keeps
+        what it finished and the sweep queues the rest on the next start.
+
+  NOTE: reuse only finds text still stored somewhere else. Re-chunking a
+        job deletes its own vectors first, so its unchanged text is
+        re-embedded unless another job has the same line.
+
+
+MEASURED (copy of the real database, full run)
+----------------------------------------------
+first start   113 chunk tasks -> 1 embed task -> 3209 vectors (2920 embedded, 289 reused)
+restart       every sweep 0, nothing re-chunked or re-embedded
+job 78 edited -> "Chunked: job 78 | 16 chunks (18 replaced)" -> 14 embedded, 2 reused
+after all     chunks = vec_chunks = chunk_embeddings, 0 orphans either way
+
+
+GOTCHA: the sqlite3 CLI
+-----------------------
+The CLI has no sqlite-vec, so anything touching vec_chunks fails:
+  SELECT ... FROM vec_chunks        -> no such module: vec0
+  DELETE FROM chunks ...            -> same error, from the delete trigger
+The delete fails whole, so nothing is left half-deleted. Use the app, or a
+script that goes through createDatabaseConnection.

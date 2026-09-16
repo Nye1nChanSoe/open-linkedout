@@ -26,6 +26,9 @@ const config = {
    */
   BATCH_SIZE: 8,
 
+  /** Chunks read per round of an embed task; each round commits its vectors. */
+  CHUNKS_PER_ROUND: 256,
+
   /** Only the files the embedder opens. */
   MODEL_FILES: [
     {

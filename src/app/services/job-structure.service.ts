@@ -92,6 +92,11 @@ export class JobStructureService {
         pc.dim(result.wasInserted ? "(new)" : "(reparsed)"),
       );
 
+      this.schedulerTaskService.createChunkTask({
+        owner_kind: "job",
+        owner_id: jobId,
+      });
+
       return result;
     } catch (error) {
       const isDatabaseBusy = isDatabaseBusyError(error);

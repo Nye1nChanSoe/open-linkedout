@@ -21,6 +21,8 @@ const TASK_TYPES: SchedulerTaskType[] = [
   "job_detail_scrape",
   "job_structure",
   "resume_extract",
+  "chunk",
+  "embed",
 ];
 
 /**

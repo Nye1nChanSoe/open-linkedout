@@ -2,6 +2,7 @@ import { SchedulerTaskRepository } from "@database/repositories/scheduler-task.r
 import { PersistenceError } from "@/app/errors/persistence-error.js";
 import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
 import type {
+  ChunkTaskPayloadType,
   CreateDiscoveryRunTaskInputType,
   DBSchedulerTaskRowType,
   JobStructureTaskPayloadType,
@@ -49,6 +50,32 @@ export class SchedulerTaskService {
   createResumeExtractTask(resumeId: number): DBSchedulerTaskRowType {
     return this.schedulerTaskRepository.createResumeExtractTask({
       resume_id: resumeId,
+    });
+  }
+
+  /**
+   * Creates one pending chunk task.
+   * @param input - Document to chunk.
+   * @returns Newly created durable scheduler task.
+   */
+  createChunkTask(input: ChunkTaskPayloadType) {
+    return runRepositoryOperationSafely("create chunk task", () =>
+      this.schedulerTaskRepository.createChunkTask(input),
+    );
+  }
+
+  /**
+   * Queues an embed task unless one is already waiting. One task embeds
+   * every chunk that needs it, so a second would find nothing to do.
+   * @returns Whether a task was created.
+   */
+  ensureEmbedTask(): boolean {
+    return runRepositoryOperationSafely("create embed task", () => {
+      if (this.schedulerTaskRepository.hasQueuedTask("embed")) return false;
+
+      this.schedulerTaskRepository.createEmbedTask();
+
+      return true;
     });
   }
 

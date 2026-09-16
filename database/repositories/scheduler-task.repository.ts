@@ -3,6 +3,7 @@ import type BetterSqlite3 from "better-sqlite3";
 import type { DatabaseConnectionType } from "@/types/database.type.js";
 import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
 import type {
+  ChunkTaskPayloadType,
   ClaimNextEligibleTaskParamsType,
   CreateDiscoveryRunTaskInputType,
   DBSchedulerTaskRowType,
@@ -38,6 +39,11 @@ export class SchedulerTaskRepository {
 
   private readonly insertTaskStatement: BetterSqlite3.Statement<
     [InsertSchedulerTaskParamsType]
+  >;
+
+  private readonly hasQueuedTaskStatement: BetterSqlite3.Statement<
+    [{ task_type: SchedulerTaskType }],
+    { found: 1 }
   >;
 
   private readonly claimNextEligibleTaskStatement: BetterSqlite3.Statement<
@@ -107,6 +113,16 @@ export class SchedulerTaskRepository {
         @updated_at,
         @campaign_id
       );
+    `,
+    );
+
+    this.hasQueuedTaskStatement = database.prepare(
+      `
+      SELECT 1 AS found
+      FROM scheduler_tasks
+      WHERE task_type = @task_type
+        AND status IN ('pending', 'retry_wait')
+      LIMIT 1;
     `,
     );
 
@@ -298,6 +314,54 @@ export class SchedulerTaskRepository {
     };
 
     const result = this.insertTaskStatement.run(task);
+
+    return this.findById(Number(result.lastInsertRowid))!;
+  }
+
+  /**
+   * Creates one pending chunk task.
+   * @param input - Document to chunk.
+   * @returns Newly created durable task.
+   */
+  createChunkTask(input: ChunkTaskPayloadType) {
+    return this.createTask("chunk", input);
+  }
+
+  /**
+   * Creates one pending embed task. It embeds every chunk still missing a
+   * current vector, so it carries no payload.
+   * @returns Newly created durable task.
+   */
+  createEmbedTask() {
+    return this.createTask("embed", {});
+  }
+
+  /**
+   * @param taskType - Task type to look for.
+   * @returns Whether a task of that type is waiting to run.
+   */
+  hasQueuedTask(taskType: SchedulerTaskType): boolean {
+    return (
+      this.hasQueuedTaskStatement.get({ task_type: taskType }) !== undefined
+    );
+  }
+
+  private createTask(taskType: SchedulerTaskType, payload: object) {
+    const timestamp = new Date().toISOString();
+
+    const result = this.insertTaskStatement.run({
+      task_type: taskType,
+      payload_json: JSON.stringify(payload),
+      status: "pending",
+      attempt_count: 0,
+      next_eligible_at: null,
+      last_error: null,
+      created_at: timestamp,
+      started_at: null,
+      completed_at: null,
+      updated_at: timestamp,
+      campaign_id: null,
+    });
 
     return this.findById(Number(result.lastInsertRowid))!;
   }

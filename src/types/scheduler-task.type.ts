@@ -1,3 +1,4 @@
+import type { ChunkOwnerKindType } from "@/types/chunk.type.js";
 import type { CanonicalJobIdType } from "@/types/job-repository.type.js";
 
 /**
@@ -21,7 +22,9 @@ export type SchedulerTaskType =
   | "discovery_run"
   | "job_detail_scrape"
   | "job_structure"
-  | "resume_extract";
+  | "resume_extract"
+  | "chunk"
+  | "embed";
 
 /** orchestrator.execute input requirements */
 export type DiscoveryRunTaskPayloadType = {
@@ -42,6 +45,12 @@ export type JobStructureTaskPayloadType = {
 /** Resume whose stored file should be extracted by the local extractor. */
 export type ResumeExtractTaskPayloadType = {
   resume_id: number;
+};
+
+/** Document whose structure or extraction should be chunked. */
+export type ChunkTaskPayloadType = {
+  owner_kind: ChunkOwnerKindType;
+  owner_id: number;
 };
 
 /** Campaign a task belongs to, when it was created by one. */

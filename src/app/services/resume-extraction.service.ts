@@ -100,6 +100,11 @@ export class ResumeExtractionService {
         this.resumeRepository.updateProcessingStatus(resume.id, "completed"),
       );
 
+      this.schedulerTaskService.createChunkTask({
+        owner_kind: "resume",
+        owner_id: resume.id,
+      });
+
       return persistenceResult;
     } catch (error) {
       this.recordFailure(resume.id, error);

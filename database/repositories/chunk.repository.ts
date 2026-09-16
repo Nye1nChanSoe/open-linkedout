@@ -1,6 +1,7 @@
 import type BetterSqlite3 from "better-sqlite3";
 
 import type {
+  ChunkOwnerKindType,
   ChunkOwnerType,
   ChunkRowInputType,
   DBChunkRowType,
@@ -23,6 +24,16 @@ export class ChunkRepository {
   private readonly findByOwnerStatement: BetterSqlite3.Statement<
     [FindChunksByOwnerParamsType],
     DBChunkRowType
+  >;
+
+  private readonly listJobIdsNeedingChunkingStatement: BetterSqlite3.Statement<
+    [{ chunker_version: string }],
+    { owner_id: number }
+  >;
+
+  private readonly listResumeIdsNeedingChunkingStatement: BetterSqlite3.Statement<
+    [{ chunker_version: string }],
+    { owner_id: number }
   >;
 
   private readonly replaceForOwnerTransaction: (
@@ -74,6 +85,36 @@ export class ChunkRepository {
     `,
     );
 
+    // A document's chunks are replaced together, so one row at the current
+    // version means the whole set is current.
+    this.listJobIdsNeedingChunkingStatement = database.prepare(
+      `
+      SELECT s.job_id AS owner_id
+      FROM job_structures s
+      WHERE NOT EXISTS (
+        SELECT 1 FROM chunks c
+        WHERE c.owner_kind = 'job'
+          AND c.owner_id = s.job_id
+          AND c.chunker_version = @chunker_version
+      )
+      ORDER BY s.job_id;
+    `,
+    );
+
+    this.listResumeIdsNeedingChunkingStatement = database.prepare(
+      `
+      SELECT e.resume_id AS owner_id
+      FROM resume_extractions e
+      WHERE NOT EXISTS (
+        SELECT 1 FROM chunks c
+        WHERE c.owner_kind = 'resume'
+          AND c.owner_id = e.resume_id
+          AND c.chunker_version = @chunker_version
+      )
+      ORDER BY e.resume_id;
+    `,
+    );
+
     this.replaceForOwnerTransaction = database.transaction(
       (owner: FindChunksByOwnerParamsType, rows: ChunkRowInputType[]) => {
         const { changes } = this.deleteByOwnerStatement.run(owner);
@@ -101,6 +142,26 @@ export class ChunkRepository {
     rows: ChunkRowInputType[],
   ): ReplaceChunksResultType {
     return this.replaceForOwnerTransaction(toOwnerParams(owner), rows);
+  }
+
+  /**
+   * Lists documents with no chunks from the given chunker version.
+   * @param ownerKind - Jobs (from job_structures) or resumes (from resume_extractions).
+   * @param chunkerVersion - Version the sweep considers current.
+   * @returns Owner identifiers needing chunking, oldest first.
+   */
+  listOwnerIdsNeedingChunking(
+    ownerKind: ChunkOwnerKindType,
+    chunkerVersion: string,
+  ): number[] {
+    const statement =
+      ownerKind === "job"
+        ? this.listJobIdsNeedingChunkingStatement
+        : this.listResumeIdsNeedingChunkingStatement;
+
+    return statement
+      .all({ chunker_version: chunkerVersion })
+      .map((row) => row.owner_id);
   }
 
   /**
