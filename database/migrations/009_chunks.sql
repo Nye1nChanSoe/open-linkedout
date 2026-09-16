@@ -39,7 +39,7 @@ CREATE TABLE chunks (
     text_hash TEXT NOT NULL,
 
     /**
-    * Path back into the source document '$.experience[2].bullets[0]'.
+    * Path back into the source document in job_structures: '$.experience[2].bullets[0]'.
     */
     source_path TEXT NOT NULL,
 
