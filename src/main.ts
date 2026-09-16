@@ -3,6 +3,7 @@ import pc from "picocolors";
 
 import { BrowserSession } from "@/app/browser/browser-session.js";
 import { JOB_CHUNKER_VERSION } from "@/app/chunkers/job-chunker.js";
+import { RESUME_CHUNKER_VERSION } from "@/app/chunkers/resume-chunker.js";
 import { RestructRunner } from "@/app/documents/restruct-runner.js";
 import { AppEventBus } from "@/app/events/app-event-bus.js";
 import {
@@ -243,8 +244,10 @@ console.info(
   pc.cyan(JOB_STRUCTURE_PARSER_VERSION),
   pc.dim("| structure schema"),
   pc.cyan(JOB_STRUCTURE_SCHEMA_VERSION),
-  pc.dim("| chunker"),
+  pc.dim("| job chunker"),
   pc.cyan(JOB_CHUNKER_VERSION),
+  pc.dim("| resume chunker"),
+  pc.cyan(RESUME_CHUNKER_VERSION),
   pc.dim("| restruct pinned"),
   pc.cyan(restructConfig.PINNED_VERSION),
   pc.dim("| resume schema"),
