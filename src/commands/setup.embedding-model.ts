@@ -15,6 +15,8 @@ import config from "@/config/embedding.config.js";
  * Files already present with the right digest are skipped, so a rerun
  * resumes an interrupted install.
  */
+const DOWNLOAD_ATTEMPTS = 3;
+
 for (const file of config.MODEL_FILES) {
   const destination = join(config.MODEL_DIR_PATH, file.localName);
 
@@ -28,7 +30,7 @@ for (const file of config.MODEL_FILES) {
     `${config.MODEL_REVISION}/${file.remotePath}`;
 
   console.info(pc.blueBright("downloading"), file.localName);
-  await download(url, destination, file.sha256);
+  await downloadWithRetries(url, destination, file.size, file.sha256);
 }
 
 console.info(
@@ -43,8 +45,34 @@ async function isInstalled(path: string, size: number, sha256: string) {
   return found?.size === size && (await digest(path)) === sha256;
 }
 
+/** A dropped or corrupted transfer is worth another try; a wrong pin is not, but three tries costs little. */
+async function downloadWithRetries(
+  url: string,
+  destination: string,
+  size: number,
+  sha256: string,
+) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await download(url, destination, size, sha256);
+    } catch (error) {
+      if (attempt === DOWNLOAD_ATTEMPTS) throw error;
+
+      console.warn(
+        pc.yellow(`attempt ${attempt} failed, retrying:`),
+        pc.dim((error as Error).message),
+      );
+    }
+  }
+}
+
 /** Writes to a temporary file and moves it into place only once the digest matches. */
-async function download(url: string, destination: string, sha256: string) {
+async function download(
+  url: string,
+  destination: string,
+  size: number,
+  sha256: string,
+) {
   const staging = `${destination}.part`;
 
   await mkdir(dirname(destination), { recursive: true });
@@ -60,12 +88,14 @@ async function download(url: string, destination: string, sha256: string) {
     createWriteStream(staging),
   );
 
+  const received = (await stat(staging)).size;
   const found = await digest(staging);
 
   if (found !== sha256) {
     await unlink(staging);
     throw new Error(
-      `Checksum mismatch for ${url}: expected ${sha256}, got ${found}`,
+      `Checksum mismatch for ${url}: expected ${sha256} (${size} bytes), ` +
+        `got ${found} (${received} bytes)`,
     );
   }
 
