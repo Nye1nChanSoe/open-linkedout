@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "setup": "npm run setup:extractor && npm run setup:models",
-    "setup:extractor": "uv venv .venv && uv pip install --python .venv restruct-cv==0.3.2",
+    "setup:extractor": "uv venv .venv && uv pip install --python .venv restruct-cv==0.3.3",
     "setup:models": "RESTRUCT_MODELS_DIRECTORY=\"$PWD/models\" ./.venv/bin/restruct --install-models && npm run setup:embedding-model",
     "setup:embedding-model": "tsx src/commands/setup.embedding-model.ts",
     "app": "tsx src/main.ts",
