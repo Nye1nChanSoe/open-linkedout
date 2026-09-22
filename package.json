@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test:parser": "node --import tsx --test src/app/parsers/job-detail-structure-parser.test.ts",
     "embedding:fixture": "tsx src/commands/embedding.fixture.ts",
+    "inspect:chunk": "tsx src/commands/inspect.chunk.ts",
     "scrape:discovery": "tsx src/commands/scrape.discovery-run.ts",
     "scrape:detail": "tsx src/commands/scrape.detail.ts",
     "resume:import": "tsx src/commands/resume.import.ts"
